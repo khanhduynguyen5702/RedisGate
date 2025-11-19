@@ -924,109 +924,20 @@
     let token = localStorage.getItem('authToken');
     let orgId = localStorage.getItem('organizationId');
     let currentUser = null;
-    let instances = [];
-    let apiKeys = [];
-    let organization = null;
-    let quotaInfo = null;
 
     console.log('=== Dashboard Initialization ===');
     console.log('API_BASE:', API_BASE);
     console.log('Token exists:', !!token);
     console.log('Organization ID:', orgId);
 
-    // ============ FUNCTION DECLARATIONS (Must be before init call) ============
-
-    function showPage(pageId) {
-        console.log('Showing page:', pageId);
-        document.querySelectorAll('.page-content').forEach(page => {
-            page.classList.remove('active');
-        });
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.remove('active');
-        });
-
-        const pageElement = document.getElementById(pageId + 'Page');
-        if (pageElement) {
-            pageElement.classList.add('active');
-        }
-
-        const navItem = document.querySelector(`[onclick="showPage('${pageId}')"]`)?.parentElement;
-        if (navItem) {
-            navItem.classList.add('active');
-        }
+    // Initialize
+    if (!token) {
+        console.log('No token found - redirecting to login');
+        window.location.href = '/index.html';
+    } else {
+        console.log('Token found - initializing dashboard');
+        init();
     }
-
-    function logout() {
-        console.log('Logging out');
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('organizationId');
-        window.location.href = '/login.html';
-    }
-
-    function showMessage(type, message) {
-        console.log(`Message [${type}]:`, message);
-        // Toast notification
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.textContent = message;
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 1rem 1.5rem;
-            background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
-            color: white;
-            border-radius: 8px;
-            z-index: 10000;
-            animation: slideIn 0.3s ease;
-        `;
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            toast.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
-
-    function openCreateModal() {
-        document.getElementById('createModal').style.display = 'flex';
-    }
-
-    function closeCreateModal() {
-        document.getElementById('createModal').style.display = 'none';
-        document.getElementById('createForm').reset();
-    }
-
-    function formatBytes(bytes) {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-    }
-
-    function formatDate(dateString) {
-        if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    function viewInstance(id) {
-        alert('Instance details: ' + id);
-    }
-
-    function copyToken() {
-        navigator.clipboard.writeText(token);
-        alert('Token copied to clipboard!');
-    }
-
-    // ============ ASYNC FUNCTIONS ============
-
 
     async function init() {
         console.log('Init function started');
@@ -1724,19 +1635,6 @@
     function viewInstance(id) {
         // TODO: Implement detailed view
         alert('Instance details: ' + id);
-    }
-
-    // ============ INITIALIZE APPLICATION ============
-    // This runs after all functions are defined
-    if (!token) {
-        console.log('No token found - redirecting to login');
-        window.location.href = '/login.html';
-    } else {
-        console.log('Token found - initializing dashboard');
-        init().catch(err => {
-            console.error('Init failed:', err);
-            showMessage('error', 'Failed to initialize dashboard');
-        });
     }
 </script>
 </body>
