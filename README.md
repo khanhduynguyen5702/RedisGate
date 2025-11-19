@@ -1,43 +1,310 @@
-# RedisGate
+# 🚀 RedisGate
 
-[](https://www.google.com/search?q=https://github.com/your-repo/your-project/actions)
-[](https://opensource.org/licenses/MIT)
-[](https://www.google.com/search?q=https://github.com/your-repo/your-project/releases)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org)
+[![Docker](https://img.shields.io/badge/docker-required-blue.svg)](https://www.docker.com)
 
-A cloud-native solution for providing Redis-as-a-Service on Kubernetes, accessible via a secure, high-performance, shared RESTful API. This repository contains the management API and control plane components. Designed for modern serverless and edge environments where direct TCP connections are restricted.
+**Redis-as-a-Service** với RESTful API - Triển khai Redis instances trong giây lát, truy cập qua HTTP/HTTPS.
 
-## 🚀 Quick Start
+> Giải pháp serverless Redis cho môi trường hiện đại, không cần kết nối TCP trực tiếp.
 
-### Development Setup
+---
 
-This project provides the management API and control plane for RedisGate. The development environment includes PostgreSQL for metadata storage, but actual Redis instances are managed by the Kubernetes operator.
+## ⚡ Chạy Nhanh (< 2 phút)
 
-**Simple Development Setup:**
-```bash
-# One-time setup (installs all dependencies and starts services)
-./setup-dev.sh
-
-# Build and run the application (migrations run automatically)
-cargo build
-cargo run
+### Windows:
+```cmd
+# 1. Mở Docker Desktop
+# 2. Chạy lệnh:
+.\start-clean.bat
 ```
 
-**Alternative using Make commands:**
+### Linux/Mac:
 ```bash
-# One-time setup (installs all dependencies)
-./setup-dev.sh
+# 1. Start Docker services
+docker-compose up -d
 
-# Start development services (PostgreSQL)
-make dev
+# 2. Start server
+cargo run --bin redisgate
+```
 
-# Start Minikube and deploy
-make deploy
+### Truy cập:
+- 🌐 **Dashboard**: http://localhost:3000
+- 👤 **Demo Login**: `demo@redisgate.dev` / `Demo123456!`
 
-# Full development setup
-make dev-full
+**Gặp lỗi?** → Xem [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+
+---
+
+## 📚 Tài Liệu
+
+| Tài liệu | Mô tả |
+|----------|-------|
+| [QUICK_START.md](docs/QUICK_START.md) | Hướng dẫn cài đặt chi tiết |
+| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Hướng dẫn phát triển |
+| [API.md](docs/API.md) | Tài liệu API endpoints |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Xử lý lỗi thường gặp |
+| [CHANGELOG.md](CHANGELOG.md) | Lịch sử thay đổi |
+
+---
+
+## ✨ Tính Năng
+
+- ✅ **RESTful API** - Truy cập Redis qua HTTP/HTTPS
+- ✅ **Multi-tenancy** - Organizations và quota management
+- ✅ **JWT Authentication** - Bảo mật với JWT tokens
+- ✅ **Auto-scaling** - Tự động scale (với Kubernetes)
+- ✅ **Dashboard** - Giao diện quản lý trực quan
+- ✅ **Quota System** - Giới hạn tài nguyên theo organization
+- ✅ **Audit Logs** - Theo dõi hoạt động
+
+---
+
+## 🏗️ Kiến Trúc
+
+```
+┌─────────────┐      ┌──────────────┐      ┌─────────────┐
+│   Browser   │─────▶│  RedisGate   │─────▶│ PostgreSQL  │
+│  Dashboard  │      │    Server    │      │  (Metadata) │
+└─────────────┘      └──────────────┘      └─────────────┘
+                            │
+                            ▼
+                     ┌─────────────┐
+                     │    Redis    │
+                     │  Instances  │
+                     └─────────────┘
+```
+
+### Tech Stack:
+- **Backend**: Rust + Axum
+- **Database**: PostgreSQL + SQLx
+- **Cache**: Redis
+- **Auth**: JWT
+- **Frontend**: Vanilla JS (đơn giản, nhanh)
+- **Infra**: Docker + Kubernetes (optional)
+
+---
+
+## 🚦 Trạng Thái Dự Án
+
+**Phase 1**: 🟡 70% hoàn thành
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Authentication | ✅ 100% | Registration, login, JWT |
+| Organizations | ✅ 100% | Auto-create, management |
+| Redis Instances | 🟡 80% | Create works, connection needs fix |
+| Quota System | ✅ 100% | Tracking, enforcement |
+| Dashboard UI | 🟡 75% | Works, needs polish |
+| API Keys | 🟡 60% | Backend done, UI incomplete |
+| Testing | ❌ 20% | Needs work |
+
+**Chi tiết**: Xem [docs/STATUS.md](docs/STATUS.md)
+
+---
+
+## 🎯 Sử Dụng Cơ Bản
+
+### 1. Đăng ký & Đăng nhập:
+```bash
+# Register
+curl -X POST http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "username": "myuser",
+    "password": "SecurePass123!",
+    "first_name": "John",
+    "last_name": "Doe"
+  }'
+
+# Login
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePass123!"
+  }'
+```
+
+### 2. Tạo Redis Instance:
+```bash
+curl -X POST http://localhost:3000/api/organizations/{org_id}/redis-instances \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Redis",
+    "slug": "my-redis-001",
+    "organization_id": "{org_id}",
+    "max_memory": 536870912,
+    "redis_version": "7.0"
+  }'
+```
+
+### 3. Sử dụng Redis:
+```bash
+# PING
+curl http://localhost:3000/redis/{instance_id}/ping \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# SET
+curl http://localhost:3000/redis/{instance_id}/set/mykey/myvalue \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# GET
+curl http://localhost:3000/redis/{instance_id}/get/mykey \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Xem thêm**: [docs/API.md](docs/API.md)
+
+---
+
+## 🛠️ Phát Triển
+
+### Yêu cầu:
+- Rust 1.70+
+- Docker Desktop
+- PostgreSQL client (optional, for manual DB access)
+
+### Cài đặt:
+```bash
+# Clone repository
+git clone https://github.com/yourusername/redisgate.git
+cd redisgate
+
+# Start Docker services
+docker-compose up -d
+
+# Install dependencies & run migrations
+cargo build
+
+# Run server
+cargo run --bin redisgate
+```
+
+### Database Migrations:
+```bash
+# Create new migration
+sqlx migrate add create_new_table
+
+# Run migrations
+cargo run  # Migrations run automatically on startup
+```
+
+### Chạy Tests:
+```bash
+# Unit tests
+cargo test
+
+# Integration tests
+cargo test --test '*'
+
+# Test connection
+cargo run --bin test_connections
+```
+
+**Chi tiết**: Xem [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+
+---
+
+## 📦 Deployment
+
+### Docker:
+```bash
+docker build -t redisgate:latest .
+docker run -p 3000:3000 redisgate:latest
+```
+
+### Docker Compose:
+```bash
+docker-compose up -d
+```
+
+### Kubernetes:
+```bash
+kubectl apply -f k8s/
+```
+
+**Chi tiết**: Xem [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+
+---
+
+## 🤝 Đóng Góp
+
+Mọi đóng góp đều được chào đón! 
+
+1. Fork repository
+2. Tạo feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Mở Pull Request
+
+**Xem**: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+---
+
+## 📝 License
+
+MIT License - Xem [LICENSE](LICENSE) để biết chi tiết.
+
+---
+
+## 🙏 Acknowledgments
+
+- [Axum](https://github.com/tokio-rs/axum) - Web framework
+- [SQLx](https://github.com/launchbadge/sqlx) - Database toolkit
+- [Redis](https://redis.io) - In-memory data store
+- [PostgreSQL](https://www.postgresql.org) - Database
+
+---
+
+## 📞 Liên Hệ & Hỗ Trợ
+
+- 📧 Email: support@redisgate.io
+- 💬 Discord: [Join our server](https://discord.gg/redisgate)
+- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/redisgate/issues)
+- 📖 Docs: [docs/](docs/)
+
+---
+
+**Made with ❤️ using Rust** 🦀
 ```
 
 For detailed development setup instructions, see [DEVELOPMENT.md](DEVELOPMENT.md).
+
+## 🔧 Troubleshooting Instance Connections
+
+If you're experiencing issues connecting to Redis instances:
+
+### Quick Test
+```bash
+# Run the connection test tool
+cargo run --bin test_connections
+```
+
+This tool will:
+- ✓ Verify database connection
+- ✓ List all Redis instances
+- ✓ Test connection to each instance
+- ✓ Show detailed error messages
+
+### Common Issues
+
+**"Failed to connect to Redis"**
+- Ensure Redis is running: `redis-cli ping` or `docker run -d -p 6379:6379 redis:7`
+- Check instance details in database: See [INSTANCE_CONNECTION_GUIDE.md](INSTANCE_CONNECTION_GUIDE.md)
+
+**"Database connection failed"**
+- Start services: `docker-compose up -d`
+- Verify DATABASE_URL in `env.development`
+- Run migrations: `sqlx migrate run`
+
+**"No Redis instances found"**
+- Create an instance via the API (see API documentation below)
+- Check if instances were soft-deleted
+
+For detailed troubleshooting steps, see [INSTANCE_CONNECTION_GUIDE.md](INSTANCE_CONNECTION_GUIDE.md).
 
 ## 🎯 Problem Statement
 

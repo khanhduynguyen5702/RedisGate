@@ -1,0 +1,4 @@
+{
+  "db": "postgresql://redisgate_dev:redisgate_dev_password@localhost:5432/redisgate_dev"
+}
+

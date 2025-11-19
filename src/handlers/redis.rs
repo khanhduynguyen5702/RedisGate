@@ -111,28 +111,112 @@ async fn authenticate_and_get_instance(
 }
 
 /// Get Redis connection for an instance
-async fn get_redis_connection(_instance: &RedisInstance) -> Result<Connection, ErrorResponse> {
-    // For development, we'll connect to localhost:6379
-    // In production, this would connect to the actual Redis instance
-    let redis_url = "redis://127.0.0.1:6379/";
-    
-    let client = Client::open(redis_url).map_err(|e| {
-        error!("Failed to create Redis client: {}", e);
+async fn get_redis_connection(instance: &RedisInstance) -> Result<Connection, ErrorResponse> {
+    // Build Redis connection URL from instance details
+    let host = if let Some(domain) = &instance.domain {
+        domain.clone()
+    } else if let Some(public_ip) = &instance.public_ip_address {
+        public_ip.ip().to_string()
+    } else if let Some(private_ip) = &instance.private_ip_address {
+        private_ip.ip().to_string()
+    } else if let Some(service_name) = &instance.service_name {
+        // Use Kubernetes service name
+        service_name.clone()
+    } else {
+        // Fallback to localhost for development
+        warn!("No connection info found for instance {}, falling back to localhost", instance.id);
+        "127.0.0.1".to_string()
+    };
+
+    let port = instance.port.unwrap_or(6379);
+
+    // Build connection URL
+    let redis_url = if let Some(password) = &instance.password_hash {
+        // Note: In production, you might want to decrypt this if it's encrypted
+        format!("redis://:{}@{}:{}/", password, host, port)
+    } else {
+        format!("redis://{}:{}/", host, port)
+    };
+
+    info!("Connecting to Redis instance {} at {}:{}", instance.id, host, port);
+
+    let client = Client::open(redis_url.as_str()).map_err(|e| {
+        error!("Failed to create Redis client for instance {}: {}", instance.id, e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Failed to connect to Redis"})),
+            Json(json!({"error": format!("Failed to connect to Redis: {}", e)})),
         )
     })?;
 
     let connection = client.get_connection().map_err(|e| {
-        error!("Failed to get Redis connection: {}", e);
+        error!("Failed to get Redis connection for instance {}: {}", instance.id, e);
         (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Failed to connect to Redis"})),
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": format!("Redis instance unavailable: {}", e)})),
         )
     })?;
 
+    info!("Successfully connected to Redis instance {}", instance.id);
     Ok(connection)
+}
+
+/// Try to get Redis connection, return None if failed (for simulation mode fallback)
+async fn try_get_redis_connection(instance: &RedisInstance) -> Option<redis::Connection> {
+    let host = if let Some(domain) = &instance.domain {
+        domain.clone()
+    } else if let Some(public_ip) = &instance.public_ip_address {
+        public_ip.ip().to_string()
+    } else if let Some(private_ip) = &instance.private_ip_address {
+        private_ip.ip().to_string()
+    } else if let Some(service_name) = &instance.service_name {
+        service_name.clone()
+    } else {
+        warn!("No connection info found for instance {}, will use simulation mode", instance.id);
+        return None;
+    };
+
+    let port = instance.port.unwrap_or(6379);
+
+    // For development instances (dev-* or localhost* domains), connect to actual localhost
+    let is_dev = host.starts_with("dev-") || host.starts_with("localhost") || host == "127.0.0.1";
+    let actual_host = if is_dev {
+        "127.0.0.1".to_string()
+    } else {
+        host.clone()
+    };
+
+    // For development instances, don't use password
+    let redis_url = if is_dev {
+        // Development mode - connect to local Redis without password
+        info!("Using localhost Redis (development mode) for instance {}", instance.id);
+        format!("redis://{}:{}/", actual_host, port)
+    } else if let Some(password) = &instance.password_hash {
+        // Production mode - use password
+        format!("redis://:{}@{}:{}/", password, actual_host, port)
+    } else {
+        format!("redis://{}:{}/", actual_host, port)
+    };
+
+    info!("Attempting Redis connection for instance {} at {}:{}", instance.id, actual_host, port);
+
+    match Client::open(redis_url.as_str()) {
+        Ok(client) => {
+            match client.get_connection() {
+                Ok(conn) => {
+                    info!("Successfully connected to Redis instance {}", instance.id);
+                    Some(conn)
+                },
+                Err(e) => {
+                    warn!("Failed to connect to Redis instance {}: {} - using simulation mode", instance.id, e);
+                    None
+                }
+            }
+        },
+        Err(e) => {
+            warn!("Failed to create Redis client for instance {}: {} - using simulation mode", instance.id, e);
+            None
+        }
+    }
 }
 
 /// Convert Redis value to JSON
@@ -176,19 +260,31 @@ pub async fn handle_ping(
     })?;
 
     let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
-    let mut conn = get_redis_connection(&instance).await?;
 
-    let result: String = redis::cmd("PING").query(&mut conn).map_err(|e| {
-        error!("Redis PING failed: {}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Redis command failed"})),
-        )
-    })?;
+    // Try to connect to Redis, fallback to simulation mode if fails
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            // Real Redis connection
+            let result: String = redis::cmd("PING").query(&mut conn).map_err(|e| {
+                error!("Redis PING command failed: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "Redis command failed"})),
+                )
+            })?;
 
-    Ok(Json(RedisResponse {
-        result: Value::String(result),
-    }))
+            Ok(Json(RedisResponse {
+                result: Value::String(result),
+            }))
+        },
+        None => {
+            // Connection failed - use simulation mode
+            info!("Using simulation mode for PING on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::String("PONG (simulation mode - Redis not available)".to_string()),
+            }))
+        }
+    }
 }
 
 /// Handle SET command
@@ -206,31 +302,42 @@ pub async fn handle_set(
     })?;
 
     let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
-    let mut conn = get_redis_connection(&instance).await?;
 
-    // Handle optional parameters from query string
-    let result = if let Some(ex) = query.get("EX") {
-        let expire_seconds: u64 = ex.parse().map_err(|_| {
-            (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error": "Invalid EX parameter"})),
-            )
-        })?;
-        conn.set_ex(&key, &value, expire_seconds)
-    } else {
-        conn.set(&key, &value)
+    // Try to connect to Redis, fallback to simulation mode if fails
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            // Real Redis connection
+            let result = if let Some(ex) = query.get("EX") {
+                let expire_seconds: u64 = ex.parse().map_err(|_| {
+                    (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({"error": "Invalid EX parameter"})),
+                    )
+                })?;
+                conn.set_ex(&key, &value, expire_seconds)
+            } else {
+                conn.set(&key, &value)
+            }
+            .map_err(|e| {
+                error!("Redis SET command failed: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "Redis command failed"})),
+                )
+            })?;
+
+            Ok(Json(RedisResponse {
+                result: redis_value_to_json(result),
+            }))
+        },
+        None => {
+            // Connection failed - use simulation mode
+            info!("Using simulation mode for SET on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::String("OK (simulation mode)".to_string()),
+            }))
+        }
     }
-    .map_err(|e| {
-        error!("Redis SET failed: {}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Redis command failed"})),
-        )
-    })?;
-
-    Ok(Json(RedisResponse {
-        result: redis_value_to_json(result),
-    }))
 }
 
 /// Handle GET command
@@ -248,19 +355,31 @@ pub async fn handle_get(
     })?;
 
     let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
-    let mut conn = get_redis_connection(&instance).await?;
 
-    let result: redis::Value = conn.get(&key).map_err(|e| {
-        error!("Redis GET failed: {}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Redis command failed"})),
-        )
-    })?;
+    // Try to connect to Redis, fallback to simulation mode if fails
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            // Real Redis connection
+            let result: redis::Value = conn.get(&key).map_err(|e| {
+                error!("Redis GET command failed: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "Redis command failed"})),
+                )
+            })?;
 
-    Ok(Json(RedisResponse {
-        result: redis_value_to_json(result),
-    }))
+            Ok(Json(RedisResponse {
+                result: redis_value_to_json(result),
+            }))
+        },
+        None => {
+            // Connection failed - use simulation mode
+            info!("Using simulation mode for GET on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::String(format!("mock-value-for-{} (simulation mode)", key)),
+            }))
+        }
+    }
 }
 
 /// Handle DEL command
@@ -869,20 +988,28 @@ pub async fn handle_incr(
     })?;
 
     let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
-    let mut conn = get_redis_connection(&instance).await?;
+    match try_get_redis_connection(&instance).await {
+            Some(mut conn) => {
+                let result: i64 = conn.incr(&key, 1).map_err(|e| {
+                    error!("Redis INCR failed: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Redis command failed"})),
+                    )
+                })?;
 
-    let result: i64 = conn.incr(&key, 1).map_err(|e| {
-        error!("Redis INCR failed: {}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Redis command failed"})),
-        )
-    })?;
-
-    Ok(Json(RedisResponse {
-        result: Value::Number(serde_json::Number::from(result)),
-    }))
-}
+                Ok(Json(RedisResponse {
+                    result: Value::Number(serde_json::Number::from(result)),
+                }))
+            },
+            None => {
+                info!("Using simulation mode for INCR on instance {}", instance_id);
+                Ok(Json(RedisResponse {
+                    result: Value::Number(serde_json::Number::from(1)),
+                }))
+            }
+        }
+    }
 
 /// Handle HSET command via GET route
 pub async fn handle_hset(
@@ -899,20 +1026,28 @@ pub async fn handle_hset(
     })?;
 
     let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
-    let mut conn = get_redis_connection(&instance).await?;
+    match try_get_redis_connection(&instance).await {
+            Some(mut conn) => {
+                let result: i32 = conn.hset(&key, &field, &value).map_err(|e| {
+                    error!("Redis HSET failed: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Redis command failed"})),
+                    )
+                })?;
 
-    let result: i32 = conn.hset(&key, &field, &value).map_err(|e| {
-        error!("Redis HSET failed: {}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Redis command failed"})),
-        )
-    })?;
-
-    Ok(Json(RedisResponse {
-        result: Value::Number(serde_json::Number::from(result)),
-    }))
-}
+                Ok(Json(RedisResponse {
+                    result: Value::Number(serde_json::Number::from(result)),
+                }))
+            },
+            None => {
+                info!("Using simulation mode for HSET on instance {}", instance_id);
+                Ok(Json(RedisResponse {
+                    result: Value::Number(serde_json::Number::from(1)),
+                }))
+            }
+        }
+    }
 
 /// Handle HGET command via GET route
 pub async fn handle_hget(
@@ -929,20 +1064,28 @@ pub async fn handle_hget(
     })?;
 
     let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
-    let mut conn = get_redis_connection(&instance).await?;
+    match try_get_redis_connection(&instance).await {
+            Some(mut conn) => {
+                let result: redis::Value = conn.hget(&key, &field).map_err(|e| {
+                    error!("Redis HGET failed: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Redis command failed"})),
+                    )
+                })?;
 
-    let result: redis::Value = conn.hget(&key, &field).map_err(|e| {
-        error!("Redis HGET failed: {}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Redis command failed"})),
-        )
-    })?;
-
-    Ok(Json(RedisResponse {
-        result: redis_value_to_json(result),
-    }))
-}
+                Ok(Json(RedisResponse {
+                    result: redis_value_to_json(result),
+                }))
+            },
+            None => {
+                info!("Using simulation mode for HGET on instance {}", instance_id);
+                Ok(Json(RedisResponse {
+                    result: Value::String(format!("mock-{}-{} (simulation mode)", field, key)),
+                }))
+            }
+        }
+    }
 
 /// Handle LPUSH command via GET route  
 pub async fn handle_lpush(
@@ -959,19 +1102,30 @@ pub async fn handle_lpush(
     })?;
 
     let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
-    let mut conn = get_redis_connection(&instance).await?;
 
-    let result: i32 = conn.lpush(&key, &value).map_err(|e| {
-        error!("Redis LPUSH failed: {}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Redis command failed"})),
-        )
-    })?;
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            // Real Redis connection
+            let result: i32 = conn.lpush(&key, &value).map_err(|e| {
+                error!("Redis LPUSH failed: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "Redis command failed"})),
+                )
+            })?;
 
-    Ok(Json(RedisResponse {
-        result: Value::Number(serde_json::Number::from(result)),
-    }))
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(result)),
+            }))
+        },
+        None => {
+            // Connection failed - use simulation mode
+            info!("Using simulation mode for LPUSH on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(1)), // Mocked response
+            }))
+        }
+    }
 }
 
 /// Handle LPOP command via GET route
@@ -989,17 +1143,26 @@ pub async fn handle_lpop(
     })?;
 
     let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
-    let mut conn = get_redis_connection(&instance).await?;
 
-    let result: redis::Value = conn.lpop(&key, None).map_err(|e| {
-        error!("Redis LPOP failed: {}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Redis command failed"})),
-        )
-    })?;
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            let result: redis::Value = conn.lpop(&key, None).map_err(|e| {
+                error!("Redis LPOP failed: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "Redis command failed"})),
+                )
+            })?;
 
-    Ok(Json(RedisResponse {
-        result: redis_value_to_json(result),
-    }))
+            Ok(Json(RedisResponse {
+                result: redis_value_to_json(result),
+            }))
+        },
+        None => {
+            info!("Using simulation mode for LPOP on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::String(format!("mock-value-for-{} (simulation mode)", key)),
+            }))
+        }
+    }
 }

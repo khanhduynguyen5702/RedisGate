@@ -35,6 +35,7 @@ pub struct Organization {
     pub is_active: Option<bool>,
     pub plan: Option<String>,
     pub max_redis_instances: Option<i32>,
+    pub max_memory_gb: Option<i32>,
     pub max_api_keys: Option<i32>,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,

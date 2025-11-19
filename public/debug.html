@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RedisGate Debug</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+        .section {
+            background: #252526;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+        pre {
+            background: #1e1e1e;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+        .error { color: #f48771; }
+        .success { color: #89d185; }
+        .info { color: #4ec9b0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 RedisGate Debug Panel</h1>
+
+    <div class="section">
+        <h2>Local Storage</h2>
+        <button onclick="checkLocalStorage()">Check LocalStorage</button>
+        <button onclick="clearLocalStorage()">Clear LocalStorage</button>
+        <pre id="localStorage-output">Click "Check LocalStorage" to view</pre>
+    </div>
+
+    <div class="section">
+        <h2>Organizations</h2>
+        <button onclick="listOrganizations()">List Organizations</button>
+        <pre id="orgs-output"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Redis Instances</h2>
+        <label>Organization ID: <input type="text" id="orgIdInput" style="width: 300px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #555; padding: 5px;"></label>
+        <button onclick="listInstances()">List Instances</button>
+        <pre id="instances-output"></pre>
+    </div>
+
+    <div class="section">
+        <h2>API Keys</h2>
+        <button onclick="listApiKeys()">List API Keys</button>
+        <pre id="apikeys-output"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Current User</h2>
+        <button onclick="getCurrentUser()">Get Current User</button>
+        <pre id="user-output"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Actions</h2>
+        <button onclick="window.location.href='/dashboard.html'">Go to Dashboard</button>
+        <button onclick="window.location.href='/login.html'">Go to Login</button>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let token = localStorage.getItem('authToken');
+        let orgId = localStorage.getItem('organizationId');
+
+        function checkLocalStorage() {
+            const output = document.getElementById('localStorage-output');
+            const data = {
+                authToken: token ? token.substring(0, 50) + '...' : 'NOT SET',
+                organizationId: orgId || 'NOT SET',
+                allKeys: Object.keys(localStorage)
+            };
+            output.innerHTML = `<span class="info">${JSON.stringify(data, null, 2)}</span>`;
+        }
+
+        function clearLocalStorage() {
+            if (confirm('Clear all localStorage?')) {
+                localStorage.clear();
+                alert('Cleared! Refresh the page.');
+            }
+        }
+
+        async function listOrganizations() {
+            const output = document.getElementById('orgs-output');
+            output.innerHTML = '<span class="info">Loading...</span>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/organizations`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await res.json();
+                output.innerHTML = `<span class="success">Status: ${res.status}</span>\n` +
+                                  JSON.stringify(data, null, 2);
+
+                // Auto-fill first org ID
+                if (data.success && data.data) {
+                    const orgs = Array.isArray(data.data) ? data.data : (data.data.data || []);
+                    if (orgs.length > 0) {
+                        document.getElementById('orgIdInput').value = orgs[0].id;
+                    }
+                }
+            } catch (err) {
+                output.innerHTML = `<span class="error">Error: ${err.message}</span>`;
+            }
+        }
+
+        async function listInstances() {
+            const output = document.getElementById('instances-output');
+            const orgIdValue = document.getElementById('orgIdInput').value || orgId;
+
+            if (!orgIdValue) {
+                output.innerHTML = '<span class="error">Please set Organization ID</span>';
+                return;
+            }
+
+            output.innerHTML = '<span class="info">Loading...</span>';
+
+            try {
+                const url = `${API_BASE}/api/organizations/${orgIdValue}/redis-instances`;
+                console.log('Fetching:', url);
+
+                const res = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await res.json();
+                output.innerHTML = `<span class="success">Status: ${res.status}</span>\n` +
+                                  `<span class="info">URL: ${url}</span>\n\n` +
+                                  JSON.stringify(data, null, 2);
+            } catch (err) {
+                output.innerHTML = `<span class="error">Error: ${err.message}</span>`;
+            }
+        }
+
+        async function listApiKeys() {
+            const output = document.getElementById('apikeys-output');
+            const orgIdValue = document.getElementById('orgIdInput').value || orgId;
+
+            if (!orgIdValue) {
+                output.innerHTML = '<span class="error">Please set Organization ID</span>';
+                return;
+            }
+
+            output.innerHTML = '<span class="info">Loading...</span>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/organizations/${orgIdValue}/api-keys`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await res.json();
+                output.innerHTML = `<span class="success">Status: ${res.status}</span>\n` +
+                                  JSON.stringify(data, null, 2);
+            } catch (err) {
+                output.innerHTML = `<span class="error">Error: ${err.message}</span>`;
+            }
+        }
+
+        async function getCurrentUser() {
+            const output = document.getElementById('user-output');
+            output.innerHTML = '<span class="info">Loading...</span>';
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await res.json();
+                output.innerHTML = `<span class="success">Status: ${res.status}</span>\n` +
+                                  JSON.stringify(data, null, 2);
+            } catch (err) {
+                output.innerHTML = `<span class="error">Error: ${err.message}</span>`;
+            }
+        }
+
+        // Auto-check localStorage on load
+        window.onload = () => {
+            checkLocalStorage();
+            if (orgId) {
+                document.getElementById('orgIdInput').value = orgId;
+            }
+        };
+    </script>
+</body>
+</html>
+

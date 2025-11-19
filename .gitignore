@@ -49,6 +49,88 @@ scripts/init-db.sql
 # Temporary files
 /tmp/
 temp/
+
+# ===== Development & Test Scripts (Temporary/Personal) =====
+
+# Debug scripts (personal debugging)
+debug-*.bat
+debug-*.ps1
+debug-*.sh
+
+# Test scripts (use cargo test instead)
+test-*.bat
+test-*.ps1
+test-login.bat
+
+# Verification/Check scripts (temporary)
+check-*.sql
+check-*.bat
+final-verification.ps1
+verify-*.ps1
+
+# Seed/Demo data scripts (one-time use)
+seed.bat
+seed-*.bat
+seed-*.ps1
+
+# Build/Run scripts (duplicates of main scripts)
+build-and-run.bat
+run.bat
+GO.bat
+
+# Restart scripts (not needed with start-clean.bat)
+restart.bat
+restart-complete.bat
+
+# Individual start scripts (replaced by start-clean.bat)
+start-server.bat
+start-debug.bat
+start-release.bat
+start-services.bat
+start-dashboard.bat
+start-and-log.ps1
+
+# Setup scripts (replaced by setup-dev.sh)
+setup-all.bat
+
+# Status/utility scripts (moved to scripts/)
+status.ps1
+quick-status.ps1
+
+# Database setup scripts (temporary)
+create-db-role.bat
+increase-org-limits.bat
+increase-limits.sql
+fix-limit.sql
+
+# Temporary SQL queries
+check-instance.sql
+check-status.sql
+check-users.sql
+
+# Demo/test Rust files (moved to examples or deleted)
+demo_jwt.rs
+test_connections.rs
+
+# Old text notes
+*.txt
+!README.txt
+
+# HTML update scripts (one-time migration)
+update-html-with-api.ps1
+
+# List/testing PowerShell scripts
+list-*.ps1
+
+# ===== Keep These Main Scripts =====
+# Main startup scripts
+!start-clean.bat
+!quick-start.bat
+!quick-start.sh
+!setup-dev.sh
+
+# Important config
+!env.development
 *.tmp
 
 # Node modules (if any JS tools are added)

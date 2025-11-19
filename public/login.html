@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - RedisGate</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --success: #22c55e;
+            --error: #ef4444;
+            --border: #334155;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 450px;
+            width: 100%;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo-text {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .tagline {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 0.75rem;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.875rem;
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.9375rem;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.875rem;
+            background: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 0.5rem;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: var(--bg-tertiary);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            padding: 0.875rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message-success {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .message-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .message-info {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .divider {
+            text-align: center;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .divider span {
+            background: var(--bg-secondary);
+            padding: 0 1rem;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .demo-credentials {
+            background: var(--bg-primary);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .demo-credentials h4 {
+            color: var(--accent);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .demo-credentials p {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            margin: 0.25rem 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .logo-text {
+                font-size: 1.5rem;
+            }
+
+            .card {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-section">
+            <div class="logo">🚀</div>
+            <div class="logo-text">RedisGate</div>
+            <div class="tagline">Redis as a Service - Serverless & RESTful</div>
+        </div>
+
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('login')">Login</button>
+                <button class="tab" onclick="switchTab('signup')">Sign Up</button>
+            </div>
+
+            <!-- Login Tab -->
+            <div id="loginTab" class="tab-content active">
+                <div class="demo-credentials">
+                    <h4>🎯 Demo Credentials</h4>
+                    <p>Email: demo@redisgate.dev</p>
+                    <p>Password: Demo123456!</p>
+                </div>
+
+                <div id="loginMessage" class="message"></div>
+
+                <form onsubmit="login(event)">
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="loginEmail" value="demo@redisgate.dev" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" value="Demo123456!" required>
+                    </div>
+
+                    <button type="submit" class="btn" id="loginBtn">Login</button>
+                </form>
+            </div>
+
+            <!-- Signup Tab -->
+            <div id="signupTab" class="tab-content">
+                <div id="signupMessage" class="message"></div>
+
+                <form onsubmit="signup(event)">
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="signupEmail" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="signupUsername" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>First Name</label>
+                        <input type="text" id="signupFirstName" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <input type="text" id="signupLastName" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="signupPassword" minlength="8" required>
+                    </div>
+
+                    <button type="submit" class="btn" id="signupBtn">Create Account</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Open Source Redis Gateway | <a href="https://github.com/yourusername/redisgate" target="_blank">GitHub</a></p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        // Check if already logged in
+        if (localStorage.getItem('authToken')) {
+            window.location.href = '/dashboard.html';
+        }
+
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+
+            if (tab === 'login') {
+                tabs[0].classList.add('active');
+                document.getElementById('loginTab').classList.add('active');
+            } else {
+                tabs[1].classList.add('active');
+                document.getElementById('signupTab').classList.add('active');
+            }
+        }
+
+        async function login(event) {
+            event.preventDefault();
+
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const messageEl = document.getElementById('loginMessage');
+            const btnEl = document.getElementById('loginBtn');
+
+            messageEl.className = 'message message-info show';
+            messageEl.textContent = '🔄 Logging in...';
+            btnEl.disabled = true;
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success && data.data) {
+                    const token = data.data.token;
+                    const orgId = data.data.organization_id;
+
+                    // Save credentials
+                    localStorage.setItem('authToken', token);
+                    if (orgId) {
+                        localStorage.setItem('organizationId', orgId);
+                    }
+
+                    messageEl.className = 'message message-success show';
+                    messageEl.textContent = '✓ Login successful! Redirecting...';
+
+                    // Setup organization if needed
+                    if (!orgId) {
+                        await setupOrganization(token);
+                    }
+
+                    // Redirect to dashboard
+                    setTimeout(() => {
+                        window.location.href = '/dashboard.html';
+                    }, 1000);
+                } else {
+                    messageEl.className = 'message message-error show';
+                    messageEl.textContent = '✗ ' + (data.message || 'Login failed');
+                    btnEl.disabled = false;
+                }
+            } catch (err) {
+                messageEl.className = 'message message-error show';
+                messageEl.textContent = '✗ Network error: ' + err.message;
+                btnEl.disabled = false;
+            }
+        }
+
+        async function signup(event) {
+            event.preventDefault();
+
+            const email = document.getElementById('signupEmail').value;
+            const username = document.getElementById('signupUsername').value;
+            const firstName = document.getElementById('signupFirstName').value;
+            const lastName = document.getElementById('signupLastName').value;
+            const password = document.getElementById('signupPassword').value;
+            const messageEl = document.getElementById('signupMessage');
+            const btnEl = document.getElementById('signupBtn');
+
+            messageEl.className = 'message message-info show';
+            messageEl.textContent = '🔄 Creating account...';
+            btnEl.disabled = true;
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email,
+                        username,
+                        first_name: firstName,
+                        last_name: lastName,
+                        password
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    messageEl.className = 'message message-success show';
+                    messageEl.textContent = '✓ Account created! Switching to login...';
+
+                    // Auto-fill login form
+                    document.getElementById('loginEmail').value = email;
+                    document.getElementById('loginPassword').value = password;
+
+                    // Switch to login tab
+                    setTimeout(() => {
+                        switchTab('login');
+                        btnEl.disabled = false;
+                    }, 2000);
+                } else {
+                    messageEl.className = 'message message-error show';
+                    messageEl.textContent = '✗ ' + (data.message || 'Signup failed');
+                    btnEl.disabled = false;
+                }
+            } catch (err) {
+                messageEl.className = 'message message-error show';
+                messageEl.textContent = '✗ Network error: ' + err.message;
+                btnEl.disabled = false;
+            }
+        }
+
+        async function setupOrganization(token) {
+            try {
+                // Try to get existing orgs
+                const res = await fetch(`${API_BASE}/api/organizations`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await res.json();
+                let orgs = [];
+
+                if (data.success && data.data) {
+                    orgs = Array.isArray(data.data) ? data.data : (data.data.data || []);
+                }
+
+                if (orgs.length > 0) {
+                    localStorage.setItem('organizationId', orgs[0].id);
+                } else {
+                    // Create new org
+                    const createRes = await fetch(`${API_BASE}/api/organizations`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            name: 'My Organization',
+                            slug: 'my-org-' + Date.now(),
+                            description: 'Default organization'
+                        })
+                    });
+
+                    const orgData = await createRes.json();
+
+                    if (orgData.success && orgData.data) {
+                        localStorage.setItem('organizationId', orgData.data.id);
+                    }
+                }
+            } catch (err) {
+                console.error('Error setting up organization:', err);
+            }
+        }
+    </script>
+</body>
+</html>
+

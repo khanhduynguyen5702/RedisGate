@@ -11,6 +11,10 @@ path = "src/main.rs"
 name = "demo_jwt"
 path = "demo_jwt.rs"
 
+[[bin]]
+name = "test_connections"
+path = "test_connections.rs"
+
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -37,6 +41,7 @@ rand = "0.8"
 validator = { version = "0.18", features = ["derive"] }
 lazy_static = "1.4"
 regex = "1.10"
+thiserror = "1.0"
 
 
 

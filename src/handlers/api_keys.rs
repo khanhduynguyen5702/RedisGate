@@ -101,40 +101,22 @@ pub async fn create_api_key(
         )
     })?;
 
-    // Check if organization has reached API key limit
-    let api_key_count = sqlx::query!(
-        "SELECT COUNT(*) as count FROM api_keys WHERE organization_id = $1 AND is_active = true",
-        payload.organization_id
-    )
-    .fetch_one(&state.db_pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::<()>::error(format!("Database error: {}", e))),
-        )
-    })?
-    .count
-    .unwrap_or(0);
+    // Check quota limits using QuotaService
+    use crate::services::quota::{QuotaService, QuotaError};
+    let quota_service = QuotaService::new(Arc::new(state.db_pool.clone()));
 
-    let org_limits = sqlx::query!(
-        "SELECT max_api_keys FROM organizations WHERE id = $1",
-        payload.organization_id
-    )
-    .fetch_one(&state.db_pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::<()>::error(format!("Database error: {}", e))),
-        )
-    })?;
-
-    if api_key_count >= org_limits.max_api_keys.unwrap_or(10) as i64 {
-        return Err((
-            StatusCode::CONFLICT,
-            Json(ApiResponse::<()>::error("Organization has reached the maximum number of API keys".to_string())),
-        ));
+    if let Err(e) = quota_service.check_can_create_api_key(payload.organization_id).await {
+        let (status, message) = match e {
+            QuotaError::MaxApiKeysReached { current, max } => (
+                StatusCode::FORBIDDEN,
+                format!("Organization has reached the maximum number of API keys ({}/{}). Please upgrade your plan or revoke unused keys.", current, max)
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Quota check failed: {}", e)
+            ),
+        };
+        return Err((status, Json(ApiResponse::<()>::error(message))));
     }
 
     // Generate API key JWT token

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auto-Fix Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: #1e293b;
+            padding: 3rem;
+            border-radius: 12px;
+            max-width: 600px;
+            text-align: center;
+            border: 2px solid #38bdf8;
+        }
+        h1 { color: #38bdf8; margin-bottom: 1rem; }
+        .status {
+            background: #0f172a;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            text-align: left;
+        }
+        .step {
+            margin: 0.75rem 0;
+            padding: 0.5rem;
+            background: #1e293b;
+            border-left: 3px solid #38bdf8;
+            padding-left: 1rem;
+        }
+        .success { color: #22c55e; }
+        .error { color: #ef4444; }
+        .info { color: #38bdf8; }
+        button {
+            background: #38bdf8;
+            color: #0f172a;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 0.5rem;
+        }
+        button:hover { background: #0ea5e9; }
+        .loading {
+            border: 3px solid #334155;
+            border-top: 3px solid #38bdf8;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 RedisGate Auto-Fix</h1>
+        <p>This tool will automatically fix your dashboard by setting the correct organization ID.</p>
+
+        <div class="status" id="status">
+            <div class="step">Click the button below to start auto-fix</div>
+        </div>
+
+        <button onclick="autoFix()" id="fixBtn">🚀 Auto-Fix Dashboard</button>
+        <button onclick="window.location.href='/dashboard.html'" style="background: #334155;">Go to Dashboard</button>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let token = localStorage.getItem('authToken');
+
+        async function autoFix() {
+            const statusDiv = document.getElementById('status');
+            const fixBtn = document.getElementById('fixBtn');
+            fixBtn.disabled = true;
+            fixBtn.textContent = 'Fixing...';
+
+            let steps = '';
+
+            try {
+                // Step 1: Check token
+                steps += '<div class="step">Step 1: Checking authentication token...</div>';
+                statusDiv.innerHTML = steps;
+
+                if (!token) {
+                    steps += '<div class="step error">❌ No auth token found. Please login first.</div>';
+                    statusDiv.innerHTML = steps;
+                    setTimeout(() => window.location.href = '/login.html', 2000);
+                    return;
+                }
+
+                steps += '<div class="step success">✓ Auth token found</div>';
+                statusDiv.innerHTML = steps;
+
+                // Step 2: Fetch organizations
+                steps += '<div class="step">Step 2: Fetching your organizations...</div>';
+                statusDiv.innerHTML = steps;
+
+                const orgsRes = await fetch(`${API_BASE}/api/organizations`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!orgsRes.ok) {
+                    throw new Error(`Failed to fetch organizations: ${orgsRes.status}`);
+                }
+
+                const orgsData = await orgsRes.json();
+                const orgs = Array.isArray(orgsData.data) ? orgsData.data : (orgsData.data?.data || []);
+
+                if (orgs.length === 0) {
+                    steps += '<div class="step error">❌ No organizations found. Creating one...</div>';
+                    statusDiv.innerHTML = steps;
+
+                    // Create organization
+                    const createRes = await fetch(`${API_BASE}/api/organizations`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: 'My Organization',
+                            slug: 'my-org-' + Date.now(),
+                            description: 'Auto-created organization'
+                        })
+                    });
+
+                    const createData = await createRes.json();
+                    if (!createData.success) {
+                        throw new Error('Failed to create organization');
+                    }
+
+                    orgs.push(createData.data);
+                    steps += '<div class="step success">✓ Organization created</div>';
+                }
+
+                steps += `<div class="step success">✓ Found ${orgs.length} organization(s)</div>`;
+                statusDiv.innerHTML = steps;
+
+                // Step 3: Find org with most instances
+                steps += '<div class="step">Step 3: Finding organization with Redis instances...</div>';
+                statusDiv.innerHTML = steps;
+
+                let bestOrg = null;
+                let maxInstances = 0;
+
+                for (const org of orgs) {
+                    try {
+                        const instancesRes = await fetch(`${API_BASE}/api/organizations/${org.id}/redis-instances`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+
+                        if (instancesRes.ok) {
+                            const instancesData = await instancesRes.json();
+                            const instances = Array.isArray(instancesData.data) ? instancesData.data : (instancesData.data?.data || []);
+
+                            if (instances.length > maxInstances) {
+                                maxInstances = instances.length;
+                                bestOrg = org;
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error checking org:', org.id, err);
+                    }
+                }
+
+                // If no org has instances, use the first one
+                if (!bestOrg) {
+                    bestOrg = orgs[0];
+                    steps += `<div class="step info">ℹ️ No instances found. Using first organization: ${bestOrg.name}</div>`;
+                } else {
+                    steps += `<div class="step success">✓ Found organization with ${maxInstances} instance(s): ${bestOrg.name}</div>`;
+                }
+
+                statusDiv.innerHTML = steps;
+
+                // Step 4: Save to localStorage
+                steps += '<div class="step">Step 4: Saving organization ID to localStorage...</div>';
+                statusDiv.innerHTML = steps;
+
+                localStorage.setItem('organizationId', bestOrg.id);
+
+                steps += `<div class="step success">✓ Organization ID saved: ${bestOrg.id}</div>`;
+                statusDiv.innerHTML = steps;
+
+                // Step 5: Success
+                steps += '<div class="step" style="margin-top: 1.5rem; border-color: #22c55e; background: rgba(34, 197, 94, 0.1);"><strong class="success">🎉 Auto-fix completed successfully!</strong></div>';
+                steps += `<div class="step info">Organization: ${bestOrg.name}</div>`;
+                steps += `<div class="step info">Redis Instances: ${maxInstances}</div>`;
+                steps += '<div class="step info">Redirecting to dashboard in 3 seconds...</div>';
+                statusDiv.innerHTML = steps;
+
+                setTimeout(() => {
+                    window.location.href = '/dashboard.html';
+                }, 3000);
+
+            } catch (error) {
+                steps += `<div class="step error">❌ Error: ${error.message}</div>`;
+                steps += '<div class="step error">Please try manual fix or contact support.</div>';
+                statusDiv.innerHTML = steps;
+                fixBtn.disabled = false;
+                fixBtn.textContent = '🔄 Retry Auto-Fix';
+            }
+        }
+
+        // Auto-run if URL has ?auto=1
+        if (window.location.search.includes('auto=1')) {
+            window.onload = () => {
+                setTimeout(autoFix, 1000);
+            };
+        }
+    </script>
+</body>
+</html>
+

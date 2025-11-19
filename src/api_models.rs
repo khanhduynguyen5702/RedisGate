@@ -41,6 +41,8 @@ pub struct LoginRequest {
 pub struct LoginResponse {
     pub token: String,
     pub user: UserResponse,
+    pub api_key: Option<String>, // API key for Redis operations
+    pub organization_id: Option<Uuid>,
 }
 
 // User response

@@ -1,0 +1,13 @@
+# Archive folder - Keep for reference but don't track changes
+# These files are old/deprecated scripts
+
+# Ignore all files by default
+*
+
+# But track the README
+!README.md
+!.gitignore
+
+# Note: Files already in Git will remain tracked
+# To untrack: git rm --cached <file>
+

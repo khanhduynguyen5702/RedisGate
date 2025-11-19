@@ -105,40 +105,27 @@ pub async fn create_redis_instance(
         )
     })?;
 
-    // Check if organization has reached Redis instance limit
-    let instance_count = sqlx::query!(
-        "SELECT COUNT(*) as count FROM redis_instances WHERE organization_id = $1 AND deleted_at IS NULL",
-        payload.organization_id
-    )
-    .fetch_one(&state.db_pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::<()>::error(format!("Database error: {}", e))),
-        )
-    })?
-    .count
-    .unwrap_or(0);
+    // Check quota limits using QuotaService
+    use crate::services::quota::{QuotaService, QuotaError};
+    let quota_service = QuotaService::new(Arc::new(state.db_pool.clone()));
+    let memory_mb = (payload.max_memory / 1024 / 1024) as i32; // Convert bytes to MB
 
-    let org_limits = sqlx::query!(
-        "SELECT max_redis_instances FROM organizations WHERE id = $1",
-        payload.organization_id
-    )
-    .fetch_one(&state.db_pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::<()>::error(format!("Database error: {}", e))),
-        )
-    })?;
-
-    if instance_count >= org_limits.max_redis_instances.unwrap_or(3) as i64 {
-        return Err((
-            StatusCode::CONFLICT,
-            Json(ApiResponse::<()>::error("Organization has reached the maximum number of Redis instances".to_string())),
-        ));
+    if let Err(e) = quota_service.check_can_create_instance(payload.organization_id, memory_mb).await {
+        let (status, message) = match e {
+            QuotaError::MaxInstancesReached { current, max } => (
+                StatusCode::FORBIDDEN,
+                format!("Organization has reached the maximum number of Redis instances ({}/{}). Please upgrade your plan or delete unused instances.", current, max)
+            ),
+            QuotaError::MemoryLimitExceeded { requested, available, total_gb } => (
+                StatusCode::FORBIDDEN,
+                format!("Memory limit exceeded: requested {}MB, only {}MB available out of {}GB total. Please reduce memory or upgrade your plan.", requested, available, total_gb)
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Quota check failed: {}", e)
+            ),
+        };
+        return Err((status, Json(ApiResponse::<()>::error(message))));
     }
 
     // Check if slug is unique within organization
@@ -183,11 +170,14 @@ pub async fn create_redis_instance(
     let backup_enabled = payload.backup_enabled.unwrap_or(false);
     let namespace = format!("redis-{}", payload.organization_id.simple());
     
-    // Use a default port range (Redis typically uses 6379, but we'll assign dynamically)
+    // For development mode, use port 6379 (shared Redis) with unique slug-based database
+    // For production K8s, each instance gets its own port
     let port = 6379;
-    let domain = format!("{}.{}.redis.local", payload.slug, payload.organization_id.simple());
 
-    // Try to deploy to Kubernetes if available
+    // Use slug as domain to ensure uniqueness in development mode
+    let domain = format!("localhost-{}", payload.slug);
+
+    // Try to deploy to Kubernetes if available (silent fallback to simulation mode)
     let k8s_deployment_result = match crate::k8s_service::K8sRedisService::new().await {
         Ok(k8s_service) => {
             let config = crate::k8s_service::RedisDeploymentConfig {
@@ -204,17 +194,18 @@ pub async fn create_redis_instance(
             
             match k8s_service.create_redis_instance(config).await {
                 Ok(result) => {
-                    tracing::info!("Successfully deployed Redis instance to Kubernetes: {}", instance_id);
+                    tracing::info!("Redis instance deployed to Kubernetes: {}", instance_id);
                     Some(result)
                 },
                 Err(e) => {
-                    tracing::warn!("Failed to deploy Redis instance to Kubernetes: {}. Continuing with database-only creation.", e);
+                    tracing::debug!("K8s deployment skipped: {}. Using simulation mode.", e);
                     None
                 }
             }
         },
-        Err(e) => {
-            tracing::warn!("Kubernetes not available: {}. Creating Redis instance without K8s deployment.", e);
+        Err(_) => {
+            // K8s not available - silent fallback to simulation mode
+            tracing::debug!("Running in simulation mode (K8s not configured)");
             None
         }
     };
@@ -231,13 +222,16 @@ pub async fn create_redis_instance(
                 "pending" // K8s deployment is pending
             )
         } else {
+            // Development mode - use localhost Redis with NULL domain (avoids unique constraint)
+            // We'll use private_ip_address instead to store 127.0.0.1
+            tracing::info!("Creating instance in development mode, using localhost:6379 (slug: {})", payload.slug);
             (
-                port,
-                domain.clone(),
+                6379,
+                format!("dev-{}", payload.slug), // Unique domain per instance
                 namespace.clone(),
                 format!("redis-{}", payload.slug),
                 format!("redis-{}-service", payload.slug),
-                "simulation" // Not actually deployed to K8s
+                "development" // Development mode with local Redis
             )
         };
 

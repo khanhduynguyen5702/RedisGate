@@ -1,6 +1,6 @@
 // Authentication handlers (register, login)
 
-use axum::{extract::State, http::StatusCode, response::Json};
+use axum::{extract::State, http::StatusCode, response::Json, Extension};
 use chrono::Utc;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -188,7 +188,7 @@ pub async fn login(
     })?
     .map(|row| row.organization_id);
 
-    // Create JWT token
+    // Create JWT token for session
     let claims = Claims::new(user.id, user.email.clone(), org_id);
     let token = state.jwt_manager.create_token(&claims).map_err(|e| {
         (
@@ -197,12 +197,93 @@ pub async fn login(
         )
     })?;
 
+    // Create API key for Redis operations (if user has organization)
+    let api_key = if let Some(org_id) = org_id {
+        // Generate API key ID and prefix
+        let api_key_id = Uuid::new_v4();
+        let key_prefix = format!("rg_{}", &api_key_id.to_string().replace("-", "")[..12]);
+
+        // Create API key claims with full permissions
+        let api_key_claims = crate::auth::ApiKeyClaims::new(
+            api_key_id,
+            user.id,
+            org_id,
+            vec!["*".to_string()], // Full permissions
+            key_prefix.clone(),
+            None, // No expiration
+        );
+
+        // Generate JWT token for API key
+        let api_key_token = state.jwt_manager.create_api_key_token(&api_key_claims).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse::<()>::error(format!("API key creation failed: {:?}", e))),
+            )
+        })?;
+
+        // Save API key to database (store JWT token directly)
+        let now = Utc::now();
+        sqlx::query!(
+            r#"
+            INSERT INTO api_keys (id, name, key_token, key_prefix, user_id, organization_id, scopes, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            "#,
+            api_key_id,
+            format!("Auto-generated key for {}", user.email),
+            api_key_token,
+            key_prefix,
+            user.id,
+            org_id,
+            &vec!["*".to_string()],
+            now,
+            now
+        )
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse::<()>::error(format!("Failed to save API key: {}", e))),
+            )
+        })?;
+
+        Some(api_key_token)
+    } else {
+        None
+    };
+
     let user_response = user_to_response(user);
 
     let login_response = LoginResponse {
         token,
         user: user_response,
+        api_key,
+        organization_id: org_id,
     };
 
     Ok(Json(ApiResponse::success(login_response)))
+}
+
+/// Get current authenticated user information
+pub async fn get_current_user(
+    State(state): State<Arc<AppState>>,
+    Extension(current_user): Extension<crate::middleware::CurrentUser>,
+) -> Result<Json<ApiResponse<UserResponse>>, ErrorResponse> {
+    // Fetch full user data from database
+    let user = sqlx::query_as!(
+        User,
+        "SELECT * FROM users WHERE id = $1",
+        current_user.id
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::<()>::error(format!("Failed to fetch user: {}", e))),
+        )
+    })?;
+
+    let user_response = user_to_response(user);
+    Ok(Json(ApiResponse::success(user_response)))
 }

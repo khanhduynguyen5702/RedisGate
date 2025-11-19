@@ -1,0 +1,274 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RedisGate - Redis as a Service</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .hero-content {
+            max-width: 800px;
+        }
+
+        .logo {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            color: #38bdf8;
+            margin-bottom: 1rem;
+            font-weight: 800;
+        }
+
+        .tagline {
+            font-size: 1.5rem;
+            color: #94a3b8;
+            margin-bottom: 2rem;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 1.125rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #38bdf8;
+            color: #0f172a;
+        }
+
+        .btn-primary:hover {
+            background: #0ea5e9;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(56, 189, 248, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #e2e8f0;
+            border: 2px solid #38bdf8;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(56, 189, 248, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .features {
+            padding: 4rem 2rem;
+            background: #1e293b;
+        }
+
+        .features-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: #0f172a;
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: #38bdf8;
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            color: #38bdf8;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-desc {
+            color: #94a3b8;
+        }
+
+        .stats {
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+
+        .stats-grid {
+            max-width: 1000px;
+            margin: 2rem auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+        }
+
+        .stat-item {
+            padding: 2rem;
+        }
+
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #38bdf8;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: #94a3b8;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            .tagline { font-size: 1.125rem; }
+            .logo { font-size: 3rem; }
+            .cta-buttons { flex-direction: column; }
+            .btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <div class="hero-content">
+            <div class="logo">🚀</div>
+            <h1>RedisGate</h1>
+            <p class="tagline">
+                Serverless Redis with RESTful API<br>
+                Deploy Redis instances in seconds
+            </p>
+
+            <div class="cta-buttons">
+                <a href="/login.html" class="btn btn-primary">Get Started</a>
+                <a href="https://github.com/yourusername/redisgate" class="btn btn-secondary" target="_blank">View on GitHub</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="features">
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3 class="feature-title">Fast & Scalable</h3>
+                <p class="feature-desc">
+                    High-performance Redis instances that scale automatically with your needs
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🌐</div>
+                <h3 class="feature-title">RESTful API</h3>
+                <p class="feature-desc">
+                    Access Redis via HTTP/HTTPS - perfect for serverless and edge functions
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 class="feature-title">Secure by Default</h3>
+                <p class="feature-desc">
+                    JWT authentication, API keys, and TLS encryption out of the box
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">☸️</div>
+                <h3 class="feature-title">Kubernetes Native</h3>
+                <p class="feature-desc">
+                    Built on Kubernetes for reliability and easy deployment
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">💰</div>
+                <h3 class="feature-title">Cost Effective</h3>
+                <p class="feature-desc">
+                    Pay only for what you use - no hidden fees or commitments
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3 class="feature-title">Dashboard</h3>
+                <p class="feature-desc">
+                    Manage instances, monitor usage, and view analytics in one place
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats">
+        <h2 style="font-size: 2.5rem; margin-bottom: 1rem; color: #38bdf8;">Why RedisGate?</h2>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value">&lt;10ms</div>
+                <div class="stat-label">Latency</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">99.9%</div>
+                <div class="stat-label">Uptime</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">10K+</div>
+                <div class="stat-label">Requests/sec</div>
+            </div>
+        </div>
+
+        <div style="margin-top: 3rem;">
+            <a href="/login.html" class="btn btn-primary">Start Building Now</a>
+        </div>
+    </div>
+
+    <script>
+        // Auto-redirect if already logged in
+        if (localStorage.getItem('authToken')) {
+            window.location.href = '/dashboard.html';
+        }
+    </script>
+</body>
+</html>
+
