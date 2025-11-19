@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RedisGate Dashboard</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
         :root {
             --bg-primary: #0f172a;
@@ -159,8 +163,13 @@
             margin-top: 0.5rem;
         }
 
-        .stat-change.positive { color: var(--success); }
-        .stat-change.negative { color: var(--error); }
+        .stat-change.positive {
+            color: var(--success);
+        }
+
+        .stat-change.negative {
+            color: var(--error);
+        }
 
         /* Forms */
         .form-group {
@@ -517,8 +526,12 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .loading-text {
@@ -636,644 +649,648 @@
     </style>
 </head>
 <body>
-    <!-- Toast Notifications Container -->
-    <div class="toast-container" id="toastContainer"></div>
+<!-- Toast Notifications Container -->
+<div class="toast-container" id="toastContainer"></div>
 
-    <!-- Header -->
-    <div class="header">
-        <div class="logo">🚀 RedisGate</div>
-        <div class="user-info">
-            <span class="user-email" id="userEmail">Not logged in</span>
-            <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+<!-- Header -->
+<div class="header">
+    <div class="logo">🚀 RedisGate</div>
+    <div class="user-info">
+        <span class="user-email" id="userEmail">Not logged in</span>
+        <button class="btn btn-secondary btn-sm" onclick="logout()">Logout</button>
+    </div>
+</div>
+
+<!-- Layout -->
+<div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="nav-item active" onclick="showPage('dashboard')">
+            📊 Dashboard
+        </div>
+        <div class="nav-item" onclick="showPage('instances')">
+            🗄️ Redis Instances
+        </div>
+        <div class="nav-item" onclick="showPage('api-keys')">
+            🔑 API Keys
+        </div>
+        <div class="nav-item" onclick="showPage('settings')">
+            ⚙️ Settings
         </div>
     </div>
 
-    <!-- Layout -->
-    <div class="layout">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <div class="nav-item active" onclick="showPage('dashboard')">
-                📊 Dashboard
-            </div>
-            <div class="nav-item" onclick="showPage('instances')">
-                🗄️ Redis Instances
-            </div>
-            <div class="nav-item" onclick="showPage('api-keys')">
-                🔑 API Keys
-            </div>
-            <div class="nav-item" onclick="showPage('settings')">
-                ⚙️ Settings
-            </div>
-        </div>
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Dashboard Page -->
+        <div id="dashboard" class="page active">
+            <h1 style="margin-bottom: 1.5rem;">Dashboard</h1>
 
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Dashboard Page -->
-            <div id="dashboard" class="page active">
-                <h1 style="margin-bottom: 1.5rem;">Dashboard</h1>
-
-                <!-- Stats -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">Total Instances</div>
-                        <div class="stat-value" id="totalInstances">0</div>
-                        <div class="stat-change positive" id="instancesChange"></div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Active API Keys</div>
-                        <div class="stat-value" id="totalApiKeys">0</div>
-                        <div class="stat-change positive" id="apiKeysChange"></div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Total Memory</div>
-                        <div class="stat-value" id="totalMemory">0 MB</div>
-                        <div class="stat-change" id="memoryChange"></div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Organizations</div>
-                        <div class="stat-value" id="totalOrgs">1</div>
-                        <div class="stat-change"></div>
-                    </div>
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Instances</div>
+                    <div class="stat-value" id="totalInstances">0</div>
+                    <div class="stat-change positive" id="instancesChange"></div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-label">Active API Keys</div>
+                    <div class="stat-value" id="totalApiKeys">0</div>
+                    <div class="stat-change positive" id="apiKeysChange"></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Memory</div>
+                    <div class="stat-value" id="totalMemory">0 MB</div>
+                    <div class="stat-change" id="memoryChange"></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Organizations</div>
+                    <div class="stat-value" id="totalOrgs">1</div>
+                    <div class="stat-change"></div>
+                </div>
+            </div>
 
-                <!-- Quota Information -->
-                <div class="card" id="quotaCard" style="margin-top: 2rem; display: none;">
-                    <div class="card-header">
-                        <h2 class="card-title">Resource Quota</h2>
-                    </div>
-                    <div style="padding: 1.5rem;">
-                        <div id="quotaWarnings" style="margin-bottom: 1rem;"></div>
+            <!-- Quota Information -->
+            <div class="card" id="quotaCard" style="margin-top: 2rem; display: none;">
+                <div class="card-header">
+                    <h2 class="card-title">Resource Quota</h2>
+                </div>
+                <div style="padding: 1.5rem;">
+                    <div id="quotaWarnings" style="margin-bottom: 1rem;"></div>
 
-                        <div style="display: grid; gap: 1.5rem;">
-                            <!-- Instances Quota -->
-                            <div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                    <span style="color: var(--text-secondary);">Redis Instances</span>
-                                    <span id="instancesQuota" style="font-weight: 600;">0/5</span>
-                                </div>
-                                <div style="background: var(--bg-primary); height: 8px; border-radius: 4px; overflow: hidden;">
-                                    <div id="instancesQuotaBar" style="background: var(--accent); height: 100%; width: 0%; transition: width 0.3s;"></div>
-                                </div>
+                    <div style="display: grid; gap: 1.5rem;">
+                        <!-- Instances Quota -->
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span style="color: var(--text-secondary);">Redis Instances</span>
+                                <span id="instancesQuota" style="font-weight: 600;">0/5</span>
                             </div>
-
-                            <!-- Memory Quota -->
-                            <div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                    <span style="color: var(--text-secondary);">Memory Usage</span>
-                                    <span id="memoryQuota" style="font-weight: 600;">0 MB / 10 GB</span>
-                                </div>
-                                <div style="background: var(--bg-primary); height: 8px; border-radius: 4px; overflow: hidden;">
-                                    <div id="memoryQuotaBar" style="background: var(--accent); height: 100%; width: 0%; transition: width 0.3s;"></div>
-                                </div>
+                            <div style="background: var(--bg-primary); height: 8px; border-radius: 4px; overflow: hidden;">
+                                <div id="instancesQuotaBar"
+                                     style="background: var(--accent); height: 100%; width: 0%; transition: width 0.3s;"></div>
                             </div>
+                        </div>
 
-                            <!-- API Keys Quota -->
-                            <div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                    <span style="color: var(--text-secondary);">API Keys</span>
-                                    <span id="apiKeysQuota" style="font-weight: 600;">0/10</span>
-                                </div>
-                                <div style="background: var(--bg-primary); height: 8px; border-radius: 4px; overflow: hidden;">
-                                    <div id="apiKeysQuotaBar" style="background: var(--accent); height: 100%; width: 0%; transition: width 0.3s;"></div>
-                                </div>
+                        <!-- Memory Quota -->
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span style="color: var(--text-secondary);">Memory Usage</span>
+                                <span id="memoryQuota" style="font-weight: 600;">0 MB / 10 GB</span>
+                            </div>
+                            <div style="background: var(--bg-primary); height: 8px; border-radius: 4px; overflow: hidden;">
+                                <div id="memoryQuotaBar"
+                                     style="background: var(--accent); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+
+                        <!-- API Keys Quota -->
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span style="color: var(--text-secondary);">API Keys</span>
+                                <span id="apiKeysQuota" style="font-weight: 600;">0/10</span>
+                            </div>
+                            <div style="background: var(--bg-primary); height: 8px; border-radius: 4px; overflow: hidden;">
+                                <div id="apiKeysQuotaBar"
+                                     style="background: var(--accent); height: 100%; width: 0%; transition: width 0.3s;"></div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Recent Activity -->
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Recent Instances</h2>
-                        <button class="btn btn-primary btn-sm" onclick="showPage('instances')">View All</button>
-                    </div>
-                    <div id="recentInstances"></div>
-                </div>
             </div>
 
-            <!-- Instances Page -->
-            <div id="instances" class="page">
+            <!-- Recent Activity -->
+            <div class="card">
                 <div class="card-header">
-                    <h1>Redis Instances</h1>
-                    <button class="btn btn-primary" onclick="openCreateModal()">+ Create Instance</button>
+                    <h2 class="card-title">Recent Instances</h2>
+                    <button class="btn btn-primary btn-sm" onclick="showPage('instances')">View All</button>
                 </div>
+                <div id="recentInstances"></div>
+            </div>
+        </div>
 
-                <div id="instancesList" class="instance-grid"></div>
+        <!-- Instances Page -->
+        <div id="instances" class="page">
+            <div class="card-header">
+                <h1>Redis Instances</h1>
+                <button class="btn btn-primary" onclick="openCreateModal()">+ Create Instance</button>
             </div>
 
-            <!-- API Keys Page -->
-            <div id="api-keys" class="page">
-                <div class="card-header">
-                    <h1>API Keys</h1>
-                    <button class="btn btn-primary" onclick="openCreateApiKeyModal()">+ Create API Key</button>
-                </div>
+            <div id="instancesList" class="instance-grid"></div>
+        </div>
 
-                <div class="card">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Key Prefix</th>
-                                <th>Scopes</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="apiKeysList"></tbody>
-                    </table>
-                </div>
+        <!-- API Keys Page -->
+        <div id="api-keys" class="page">
+            <div class="card-header">
+                <h1>API Keys</h1>
+                <button class="btn btn-primary" onclick="openCreateApiKeyModal()">+ Create API Key</button>
             </div>
 
-            <!-- Settings Page -->
-            <div id="settings" class="page">
-                <h1 style="margin-bottom: 1.5rem;">Settings</h1>
+            <div class="card">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Key Prefix</th>
+                        <th>Scopes</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="apiKeysList"></tbody>
+                </table>
+            </div>
+        </div>
 
-                <div class="card">
-                    <h2 class="card-title">Organization Settings</h2>
-                    <div class="form-group">
-                        <label>Organization Name</label>
-                        <input type="text" id="orgName" placeholder="My Organization">
-                    </div>
-                    <div class="form-group">
-                        <label>Organization ID</label>
-                        <input type="text" id="orgId" disabled>
-                    </div>
-                    <button class="btn btn-primary">Save Changes</button>
+        <!-- Settings Page -->
+        <div id="settings" class="page">
+            <h1 style="margin-bottom: 1.5rem;">Settings</h1>
+
+            <div class="card">
+                <h2 class="card-title">Organization Settings</h2>
+                <div class="form-group">
+                    <label>Organization Name</label>
+                    <input type="text" id="orgName" placeholder="My Organization">
                 </div>
+                <div class="form-group">
+                    <label>Organization ID</label>
+                    <input type="text" id="orgId" disabled>
+                </div>
+                <button class="btn btn-primary">Save Changes</button>
+            </div>
 
-                <div class="card">
-                    <h2 class="card-title">API Configuration</h2>
-                    <div class="message message-info">
-                        <strong>API Base URL:</strong> <code id="apiBaseUrl"></code>
-                    </div>
-                    <div class="message message-info">
-                        <strong>Your Auth Token:</strong>
-                        <div class="code-block">
-                            <button class="btn btn-sm btn-secondary copy-btn" onclick="copyToken()">Copy</button>
-                            <code id="authToken"></code>
-                        </div>
+            <div class="card">
+                <h2 class="card-title">API Configuration</h2>
+                <div class="message message-info">
+                    <strong>API Base URL:</strong> <code id="apiBaseUrl"></code>
+                </div>
+                <div class="message message-info">
+                    <strong>Your Auth Token:</strong>
+                    <div class="code-block">
+                        <button class="btn btn-sm btn-secondary copy-btn" onclick="copyToken()">Copy</button>
+                        <code id="authToken"></code>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Create Instance Modal -->
-    <div id="createModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Create Redis Instance</h2>
-                <button class="close-btn" onclick="closeCreateModal()">&times;</button>
-            </div>
+<!-- Create Instance Modal -->
+<div id="createModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Create Redis Instance</h2>
+            <button class="close-btn" onclick="closeCreateModal()">&times;</button>
+        </div>
 
-            <div class="form-group">
-                <label>Instance Name *</label>
-                <input type="text" id="instanceName" placeholder="my-redis-instance">
-            </div>
+        <div class="form-group">
+            <label>Instance Name *</label>
+            <input type="text" id="instanceName" placeholder="my-redis-instance">
+        </div>
 
-            <div class="form-group">
-                <label>Memory Limit *</label>
-                <select id="memoryLimit">
-                    <option value="268435456">256 MB</option>
-                    <option value="536870912" selected>512 MB</option>
-                    <option value="1073741824">1 GB</option>
-                    <option value="2147483648">2 GB</option>
-                </select>
-            </div>
+        <div class="form-group">
+            <label>Memory Limit *</label>
+            <select id="memoryLimit">
+                <option value="268435456">256 MB</option>
+                <option value="536870912" selected>512 MB</option>
+                <option value="1073741824">1 GB</option>
+                <option value="2147483648">2 GB</option>
+            </select>
+        </div>
 
-            <div class="form-group">
-                <label>Redis Version</label>
-                <select id="redisVersion">
-                    <option value="6.2">6.2</option>
-                    <option value="7.0" selected>7.0</option>
-                    <option value="7.2">7.2</option>
-                </select>
-            </div>
+        <div class="form-group">
+            <label>Redis Version</label>
+            <select id="redisVersion">
+                <option value="6.2">6.2</option>
+                <option value="7.0" selected>7.0</option>
+                <option value="7.2">7.2</option>
+            </select>
+        </div>
 
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" id="persistenceEnabled" checked>
-                    Enable Persistence
-                </label>
-            </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="persistenceEnabled" checked>
+                Enable Persistence
+            </label>
+        </div>
 
-            <div id="createInstanceStatus"></div>
+        <div id="createInstanceStatus"></div>
 
-            <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
-                <button class="btn btn-primary" onclick="createInstance()">Create Instance</button>
-                <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
-            </div>
+        <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+            <button class="btn btn-primary" onclick="createInstance()">Create Instance</button>
+            <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
         </div>
     </div>
+</div>
 
-    <!-- Create API Key Modal -->
-    <div id="createApiKeyModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Create API Key</h2>
-                <button class="close-btn" onclick="closeCreateApiKeyModal()">&times;</button>
-            </div>
+<!-- Create API Key Modal -->
+<div id="createApiKeyModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Create API Key</h2>
+            <button class="close-btn" onclick="closeCreateApiKeyModal()">&times;</button>
+        </div>
 
-            <div class="form-group">
-                <label>Key Name *</label>
-                <input type="text" id="apiKeyName" placeholder="Production API Key">
-            </div>
+        <div class="form-group">
+            <label>Key Name *</label>
+            <input type="text" id="apiKeyName" placeholder="Production API Key">
+        </div>
 
-            <div class="form-group">
-                <label>Scopes</label>
-                <select id="apiKeyScopes" multiple>
-                    <option value="read" selected>Read</option>
-                    <option value="write" selected>Write</option>
-                    <option value="delete">Delete</option>
-                </select>
-            </div>
+        <div class="form-group">
+            <label>Scopes</label>
+            <select id="apiKeyScopes" multiple>
+                <option value="read" selected>Read</option>
+                <option value="write" selected>Write</option>
+                <option value="delete">Delete</option>
+            </select>
+        </div>
 
-            <div id="createApiKeyStatus"></div>
+        <div id="createApiKeyStatus"></div>
 
-            <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
-                <button class="btn btn-primary" onclick="createApiKey()">Create Key</button>
-                <button class="btn btn-secondary" onclick="closeCreateApiKeyModal()">Cancel</button>
-            </div>
+        <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+            <button class="btn btn-primary" onclick="createApiKey()">Create Key</button>
+            <button class="btn btn-secondary" onclick="closeCreateApiKeyModal()">Cancel</button>
         </div>
     </div>
+</div>
 
-    <script>
-        const API_BASE = window.location.origin;
-        let token = localStorage.getItem('authToken');
-        let orgId = localStorage.getItem('organizationId');
-        let currentUser = null;
+<script>
+    const API_BASE = window.location.origin;
+    let token = localStorage.getItem('authToken');
+    let orgId = localStorage.getItem('organizationId');
+    let currentUser = null;
 
-        console.log('=== Dashboard Initialization ===');
-        console.log('API_BASE:', API_BASE);
-        console.log('Token exists:', !!token);
-        console.log('Organization ID:', orgId);
+    console.log('=== Dashboard Initialization ===');
+    console.log('API_BASE:', API_BASE);
+    console.log('Token exists:', !!token);
+    console.log('Organization ID:', orgId);
 
-        // Initialize
-        if (!token) {
-            console.log('No token found - redirecting to login');
-            window.location.href = '/index.html';
+    // Initialize
+    if (!token) {
+        console.log('No token found - redirecting to login');
+        window.location.href = '/index.html';
+    } else {
+        console.log('Token found - initializing dashboard');
+        init();
+    }
+
+    async function init() {
+        console.log('Init function started');
+        await loadCurrentUser();
+
+        // Ensure user has an organization
+        if (!orgId || orgId === 'null' || orgId === 'undefined') {
+            console.log('No organization ID found - checking for existing orgs');
+            await ensureOrganization();
+        }
+
+        if (orgId && orgId !== 'null' && orgId !== 'undefined') {
+            await loadDashboardData();
         } else {
-            console.log('Token found - initializing dashboard');
-            init();
+            console.error('Failed to get organization ID');
+            showMessage('error', 'Please create an organization first');
         }
 
-        async function init() {
-            console.log('Init function started');
-            await loadCurrentUser();
+        showPage('dashboard');
+        console.log('Init function completed');
+    }
 
-            // Ensure user has an organization
-            if (!orgId || orgId === 'null' || orgId === 'undefined') {
-                console.log('No organization ID found - checking for existing orgs');
-                await ensureOrganization();
+    // Ensure user has an organization - create one if needed
+    async function ensureOrganization() {
+        try {
+            // First, try to list existing organizations
+            const listRes = await fetch(`${API_BASE}/api/organizations`, {
+                headers: {'Authorization': `Bearer ${token}`}
+            });
+
+            if (listRes.ok) {
+                const listData = await listRes.json();
+                console.log('Existing organizations:', listData);
+
+                if (listData.success && listData.data && listData.data.data && listData.data.data.length > 0) {
+                    // Use first organization
+                    const firstOrg = listData.data.data[0];
+                    orgId = firstOrg.id;
+                    localStorage.setItem('organizationId', orgId);
+                    console.log('Using existing organization:', orgId);
+                    return;
+                }
             }
 
-            if (orgId && orgId !== 'null' && orgId !== 'undefined') {
-                await loadDashboardData();
+            // No organizations found - create default one
+            console.log('No organizations found - creating default organization');
+            const createRes = await fetch(`${API_BASE}/api/organizations`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: `${currentUser.email}'s Organization`,
+                    slug: `org-${Date.now()}`,
+                    description: 'Default organization'
+                })
+            });
+
+            if (createRes.ok) {
+                const createData = await createRes.json();
+                console.log('Created new organization:', createData);
+
+                if (createData.success && createData.data) {
+                    orgId = createData.data.id;
+                    localStorage.setItem('organizationId', orgId);
+                    console.log('Organization created successfully:', orgId);
+                }
             } else {
-                console.error('Failed to get organization ID');
-                showMessage('error', 'Please create an organization first');
+                console.error('Failed to create organization:', await createRes.text());
             }
-
-            showPage('dashboard');
-            console.log('Init function completed');
+        } catch (err) {
+            console.error('Error ensuring organization:', err);
         }
+    }
 
-        // Ensure user has an organization - create one if needed
-        async function ensureOrganization() {
-            try {
-                // First, try to list existing organizations
-                const listRes = await fetch(`${API_BASE}/api/organizations`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+    async function loadCurrentUser() {
+        try {
+            const res = await fetch(`${API_BASE}/auth/me`, {
+                headers: {'Authorization': `Bearer ${token}`}
+            });
 
-                if (listRes.ok) {
-                    const listData = await listRes.json();
-                    console.log('Existing organizations:', listData);
-
-                    if (listData.success && listData.data && listData.data.data && listData.data.data.length > 0) {
-                        // Use first organization
-                        const firstOrg = listData.data.data[0];
-                        orgId = firstOrg.id;
-                        localStorage.setItem('organizationId', orgId);
-                        console.log('Using existing organization:', orgId);
-                        return;
-                    }
-                }
-
-                // No organizations found - create default one
-                console.log('No organizations found - creating default organization');
-                const createRes = await fetch(`${API_BASE}/api/organizations`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        name: `${currentUser.email}'s Organization`,
-                        slug: `org-${Date.now()}`,
-                        description: 'Default organization'
-                    })
-                });
-
-                if (createRes.ok) {
-                    const createData = await createRes.json();
-                    console.log('Created new organization:', createData);
-
-                    if (createData.success && createData.data) {
-                        orgId = createData.data.id;
-                        localStorage.setItem('organizationId', orgId);
-                        console.log('Organization created successfully:', orgId);
-                    }
-                } else {
-                    console.error('Failed to create organization:', await createRes.text());
-                }
-            } catch (err) {
-                console.error('Error ensuring organization:', err);
+            if (res.ok) {
+                const data = await res.json();
+                currentUser = data.data;
+                document.getElementById('userEmail').textContent = currentUser.email;
+            } else {
+                logout();
             }
+        } catch (err) {
+            console.error('Failed to load user:', err);
+        }
+    }
+
+    async function loadDashboardData() {
+        await Promise.all([
+            loadInstances(),
+            loadApiKeys(),
+            loadOrganization(),
+            loadQuota()
+        ]);
+        updateStats();
+    }
+
+    let instances = [];
+    let apiKeys = [];
+    let organization = null;
+    let quotaInfo = null;
+
+    async function loadInstances() {
+        if (!orgId || orgId === 'null' || orgId === 'undefined') {
+            console.error('Cannot load instances: no organization ID');
+            instances = [];
+            renderInstances();
+            return;
         }
 
-        async function loadCurrentUser() {
-            try {
-                const res = await fetch(`${API_BASE}/auth/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+        console.log('Loading instances for org:', orgId);
 
-                if (res.ok) {
-                    const data = await res.json();
-                    currentUser = data.data;
-                    document.getElementById('userEmail').textContent = currentUser.email;
-                } else {
-                    logout();
+        try {
+            const res = await fetch(`${API_BASE}/api/organizations/${orgId}/redis-instances`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
                 }
-            } catch (err) {
-                console.error('Failed to load user:', err);
-            }
-        }
+            });
 
-        async function loadDashboardData() {
-            await Promise.all([
-                loadInstances(),
-                loadApiKeys(),
-                loadOrganization(),
-                loadQuota()
-            ]);
-            updateStats();
-        }
+            console.log('Response status:', res.status);
 
-        let instances = [];
-        let apiKeys = [];
-        let organization = null;
-        let quotaInfo = null;
-
-        async function loadInstances() {
-            if (!orgId || orgId === 'null' || orgId === 'undefined') {
-                console.error('Cannot load instances: no organization ID');
-                instances = [];
-                renderInstances();
+            if (res.status === 401) {
+                showMessage('error', 'Session expired. Please login again.');
+                setTimeout(() => logout(), 2000);
                 return;
             }
 
-            console.log('Loading instances for org:', orgId);
-            try {
-                const url = `${API_BASE}/api/organizations/${orgId}/redis-instances`;
-                console.log('Fetching from:', url);
+            const data = await res.json();
+            console.log('Response data:', data);
 
-                const res = await fetch(url, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                console.log('Response status:', res.status);
-
-                if (res.status === 401) {
-                    console.error('Unauthorized - token may be expired');
-                    showMessage('error', 'Session expired. Please login again.');
-                    setTimeout(() => logout(), 2000);
-                    return;
-                }
-
-                const data = await res.json();
-                console.log('Response data:', data);
-
-                if (data.success && data.data) {
-                    instances = Array.isArray(data.data) ? data.data : (data.data.data || []);
-                    console.log('Parsed instances:', instances);
-                    renderInstances();
-                } else {
-                    console.error('Invalid response format:', data);
-                    instances = [];
-                    renderInstances();
-                }
-            } catch (err) {
-                console.error('Failed to load instances:', err);
+            if (data.success && data.data && data.data.items) {
+                // ✅ FIX: Assign directly and render immediately
+                instances = data.data.items;
+                console.log('✅ Loaded instances:', instances.length, instances);
+                renderInstances();
+            } else {
+                console.error('No instances in response');
                 instances = [];
                 renderInstances();
-                showMessage('error', 'Failed to load instances. Please refresh the page.');
             }
+        } catch (err) {
+            console.error('Failed to load instances:', err);
+            showMessage('error', 'Failed to load instances');
+            instances = [];
+            renderInstances();
         }
+    }
 
-        async function loadApiKeys() {
-            try {
-                const res = await fetch(`${API_BASE}/api/organizations/${orgId}/api-keys`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
 
-                const data = await res.json();
-                if (data.success && data.data) {
-                    apiKeys = Array.isArray(data.data) ? data.data : (data.data.data || []);
-                    renderApiKeys();
+    async function loadApiKeys() {
+        try {
+            const res = await fetch(`${API_BASE}/api/organizations/${orgId}/api-keys`, {
+                headers: {'Authorization': `Bearer ${token}`}
+            });
+
+            const data = await res.json();
+            if (data.success && data.data) {
+                apiKeys = Array.isArray(data.data) ? data.data : (data.data.data || []);
+                renderApiKeys();
+            }
+        } catch (err) {
+            console.error('Failed to load API keys:', err);
+        }
+    }
+
+    async function loadOrganization() {
+        try {
+            const res = await fetch(`${API_BASE}/api/organizations/${orgId}`, {
+                headers: {'Authorization': `Bearer ${token}`}
+            });
+
+            const data = await res.json();
+            if (data.success && data.data) {
+                organization = data.data;
+                document.getElementById('orgName').value = organization.name;
+                document.getElementById('orgId').value = organization.id;
+            }
+        } catch (err) {
+            console.error('Failed to load organization:', err);
+        }
+    }
+
+    async function loadQuota() {
+        try {
+            const res = await fetch(`${API_BASE}/api/organizations/${orgId}/quota`, {
+                headers: {'Authorization': `Bearer ${token}`}
+            });
+
+            const data = await res.json();
+            console.log('Quota data:', data);
+
+            if (data.success && data.data) {
+                quotaInfo = data.data.quota;
+                updateQuotaDisplay();
+
+                // Show warnings if any
+                if (data.data.warnings && data.data.warnings.length > 0) {
+                    showQuotaWarnings(data.data.warnings);
                 }
-            } catch (err) {
-                console.error('Failed to load API keys:', err);
             }
+        } catch (err) {
+            console.error('Failed to load quota:', err);
         }
+    }
 
-        async function loadOrganization() {
-            try {
-                const res = await fetch(`${API_BASE}/api/organizations/${orgId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+    function updateQuotaDisplay() {
+        if (!quotaInfo) return;
 
-                const data = await res.json();
-                if (data.success && data.data) {
-                    organization = data.data;
-                    document.getElementById('orgName').value = organization.name;
-                    document.getElementById('orgId').value = organization.id;
-                }
-            } catch (err) {
-                console.error('Failed to load organization:', err);
-            }
-        }
+        // Show quota card
+        document.getElementById('quotaCard').style.display = 'block';
 
-        async function loadQuota() {
-            try {
-                const res = await fetch(`${API_BASE}/api/organizations/${orgId}/quota`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+        // Update instances quota
+        document.getElementById('instancesQuota').textContent =
+            `${quotaInfo.current_instances}/${quotaInfo.max_instances}`;
+        const instancesPercent = quotaInfo.instances_percentage;
+        const instancesBar = document.getElementById('instancesQuotaBar');
+        instancesBar.style.width = `${instancesPercent}%`;
+        instancesBar.style.background = instancesPercent >= 90 ? 'var(--error)' :
+            instancesPercent >= 75 ? 'var(--warning)' : 'var(--accent)';
 
-                const data = await res.json();
-                console.log('Quota data:', data);
+        // Update memory quota
+        const memoryUsedGB = (quotaInfo.current_memory_mb / 1024).toFixed(2);
+        document.getElementById('memoryQuota').textContent =
+            `${memoryUsedGB} GB / ${quotaInfo.max_memory_gb} GB`;
+        const memoryPercent = quotaInfo.memory_percentage;
+        const memoryBar = document.getElementById('memoryQuotaBar');
+        memoryBar.style.width = `${memoryPercent}%`;
+        memoryBar.style.background = memoryPercent >= 90 ? 'var(--error)' :
+            memoryPercent >= 75 ? 'var(--warning)' : 'var(--accent)';
 
-                if (data.success && data.data) {
-                    quotaInfo = data.data.quota;
-                    updateQuotaDisplay();
+        // Update API keys quota
+        document.getElementById('apiKeysQuota').textContent =
+            `${quotaInfo.current_api_keys}/${quotaInfo.max_api_keys}`;
+        const apiKeysPercent = (quotaInfo.current_api_keys / quotaInfo.max_api_keys) * 100;
+        const apiKeysBar = document.getElementById('apiKeysQuotaBar');
+        apiKeysBar.style.width = `${apiKeysPercent}%`;
+        apiKeysBar.style.background = apiKeysPercent >= 90 ? 'var(--error)' :
+            apiKeysPercent >= 75 ? 'var(--warning)' : 'var(--accent)';
+    }
 
-                    // Show warnings if any
-                    if (data.data.warnings && data.data.warnings.length > 0) {
-                        showQuotaWarnings(data.data.warnings);
-                    }
-                }
-            } catch (err) {
-                console.error('Failed to load quota:', err);
-            }
-        }
-
-        function updateQuotaDisplay() {
-            if (!quotaInfo) return;
-
-            // Show quota card
-            document.getElementById('quotaCard').style.display = 'block';
-
-            // Update instances quota
-            document.getElementById('instancesQuota').textContent =
-                `${quotaInfo.current_instances}/${quotaInfo.max_instances}`;
-            const instancesPercent = quotaInfo.instances_percentage;
-            const instancesBar = document.getElementById('instancesQuotaBar');
-            instancesBar.style.width = `${instancesPercent}%`;
-            instancesBar.style.background = instancesPercent >= 90 ? 'var(--error)' :
-                                           instancesPercent >= 75 ? 'var(--warning)' : 'var(--accent)';
-
-            // Update memory quota
-            const memoryUsedGB = (quotaInfo.current_memory_mb / 1024).toFixed(2);
-            document.getElementById('memoryQuota').textContent =
-                `${memoryUsedGB} GB / ${quotaInfo.max_memory_gb} GB`;
-            const memoryPercent = quotaInfo.memory_percentage;
-            const memoryBar = document.getElementById('memoryQuotaBar');
-            memoryBar.style.width = `${memoryPercent}%`;
-            memoryBar.style.background = memoryPercent >= 90 ? 'var(--error)' :
-                                        memoryPercent >= 75 ? 'var(--warning)' : 'var(--accent)';
-
-            // Update API keys quota
-            document.getElementById('apiKeysQuota').textContent =
-                `${quotaInfo.current_api_keys}/${quotaInfo.max_api_keys}`;
-            const apiKeysPercent = (quotaInfo.current_api_keys / quotaInfo.max_api_keys) * 100;
-            const apiKeysBar = document.getElementById('apiKeysQuotaBar');
-            apiKeysBar.style.width = `${apiKeysPercent}%`;
-            apiKeysBar.style.background = apiKeysPercent >= 90 ? 'var(--error)' :
-                                         apiKeysPercent >= 75 ? 'var(--warning)' : 'var(--accent)';
-        }
-
-        function showQuotaWarnings(warnings) {
-            const container = document.getElementById('quotaWarnings');
-            container.innerHTML = warnings.map(warning => `
+    function showQuotaWarnings(warnings) {
+        const container = document.getElementById('quotaWarnings');
+        container.innerHTML = warnings.map(warning => `
                 <div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--warning); padding: 1rem; border-radius: 4px; margin-bottom: 0.5rem;">
                     <strong>⚠️ Warning:</strong> ${warning}
                 </div>
             `).join('');
+    }
+
+    function updateStats() {
+        document.getElementById('totalInstances').textContent = instances.length;
+        document.getElementById('totalApiKeys').textContent = apiKeys.length;
+
+        const totalMemory = instances.reduce((sum, inst) => sum + (inst.max_memory || 0), 0);
+        document.getElementById('totalMemory').textContent = formatBytes(totalMemory);
+
+        document.getElementById('apiBaseUrl').textContent = API_BASE;
+        document.getElementById('authToken').textContent = token.substring(0, 50) + '...';
+    }
+
+    function renderInstances() {
+        console.log('Rendering instances. Count:', instances.length);
+        console.log('Instances data:', instances);
+
+        const container = document.getElementById('instancesList');
+        const recentContainer = document.getElementById('recentInstances');
+
+        if (!instances || instances.length === 0) {
+            console.log('No instances to render - showing empty state');
+            const emptyHtml = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🗄️</div>
+                <div class="empty-state-title">No Redis Instances</div>
+                <div class="empty-state-text">Create your first Redis instance to get started</div>
+                <button class="btn btn-primary" onclick="openCreateModal()">+ Create Instance</button>
+            </div>
+        `;
+            if (container) container.innerHTML = emptyHtml;
+            if (recentContainer) recentContainer.innerHTML = emptyHtml;
+            return;
         }
 
-        function updateStats() {
-            document.getElementById('totalInstances').textContent = instances.length;
-            document.getElementById('totalApiKeys').textContent = apiKeys.length;
+        console.log('✅ Rendering', instances.length, 'instances');
 
-            const totalMemory = instances.reduce((sum, inst) => sum + (inst.max_memory || 0), 0);
-            document.getElementById('totalMemory').textContent = formatBytes(totalMemory);
-
-            document.getElementById('apiBaseUrl').textContent = API_BASE;
-            document.getElementById('authToken').textContent = token.substring(0, 50) + '...';
-        }
-
-        function renderInstances() {
-            console.log('Rendering instances. Count:', instances.length);
-            console.log('Instances data:', instances);
-
-            const container = document.getElementById('instancesList');
-            const recentContainer = document.getElementById('recentInstances');
-
-            if (instances.length === 0) {
-                console.log('No instances to render - showing empty state');
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">🗄️</div>
-                        <div class="empty-state-title">No Redis Instances</div>
-                        <div class="empty-state-text">Create your first Redis instance to get started</div>
-                        <button class="btn btn-primary" onclick="openCreateModal()">+ Create Instance</button>
+        const html = instances.map(inst => `
+            <div class="instance-card">
+                <div class="instance-header">
+                    <div>
+                        <div class="instance-name">${escapeHtml(inst.name)}</div>
+                        <div class="instance-slug">${escapeHtml(inst.slug)}</div>
                     </div>
-                `;
-                recentContainer.innerHTML = container.innerHTML;
-                return;
-            }
+                    <span class="status-badge status-simulation">Simulation</span>
+                </div>
 
-            const html = instances.map(inst => `
-                <div class="instance-card">
-                    <div class="instance-header">
-                        <div>
-                            <div class="instance-name">${escapeHtml(inst.name)}</div>
-                            <div class="instance-slug">${escapeHtml(inst.slug)}</div>
-                        </div>
-                        <span class="status-badge ${inst.deleted_at ? 'status-inactive' : 'status-simulation'}">
-                            ${inst.deleted_at ? 'Deleted' : 'Simulation Mode'}
-                        </span>
+                <div class="instance-meta">
+                    <div class="meta-item">
+                        <div class="meta-label">Memory Limit</div>
+                        <div class="meta-value">${formatBytes(inst.max_memory)}</div>
                     </div>
-
-                    <div class="instance-meta">
-                        <div class="meta-item">
-                            <div class="meta-label">Instance ID</div>
-                            <div class="meta-value">${inst.id.substring(0, 8)}...</div>
-                        </div>
-                        <div class="meta-item">
-                            <div class="meta-label">Memory</div>
-                            <div class="meta-value">${formatBytes(inst.max_memory)}</div>
-                        </div>
-                        <div class="meta-item">
-                            <div class="meta-label">Version</div>
-                            <div class="meta-value">${inst.redis_version}</div>
-                        </div>
-                        <div class="meta-item">
-                            <div class="meta-label">Created</div>
-                            <div class="meta-value">${formatDate(inst.created_at)}</div>
-                        </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Redis Version</div>
+                        <div class="meta-value">${inst.redis_version || '7.0'}</div>
                     </div>
-
-                    <div class="redis-tester">
-                        <h4 style="margin-bottom: 0.75rem; color: var(--text-secondary);">Test Commands</h4>
-                        <div class="command-group">
-                            <input type="text" id="key-${inst.id}" placeholder="key" style="margin-bottom: 0;">
-                            <button class="btn btn-sm btn-secondary" onclick="testPing('${inst.id}')">PING</button>
-                        </div>
-                        <div class="command-group">
-                            <input type="text" id="value-${inst.id}" placeholder="value" style="margin-bottom: 0;">
-                            <button class="btn btn-sm btn-secondary" onclick="testSet('${inst.id}')">SET</button>
-                        </div>
-                        <button class="btn btn-sm btn-secondary" onclick="testGet('${inst.id}')">GET</button>
-                        <div class="command-output" id="output-${inst.id}">Ready for commands...</div>
+                    <div class="meta-item">
+                        <div class="meta-label">Created</div>
+                        <div class="meta-value">${formatDate(inst.created_at)}</div>
                     </div>
-
-                    <div class="instance-actions">
-                        <button class="btn btn-sm btn-secondary" onclick="viewInstance('${inst.id}')">View Details</button>
-                        ${!inst.deleted_at ? `<button class="btn btn-sm btn-danger" onclick="deleteInstance('${inst.id}')">Delete</button>` : ''}
+                    <div class="meta-item">
+                        <div class="meta-label">Instance ID</div>
+                        <div class="meta-value">${inst.id.substring(0, 8)}...</div>
                     </div>
                 </div>
-            `).join('');
 
+                <div class="instance-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="viewInstance('${inst.id}')">View Details</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteInstance('${inst.id}')">Delete</button>
+                </div>
+            </div>
+        `).join('');
+
+        console.log('Generated HTML. Length:', html.length);
+
+        if (container) {
             container.innerHTML = html;
-            recentContainer.innerHTML = html;
+            console.log('Updated instancesList container');
         }
+        if (recentContainer) {
+            recentContainer.innerHTML = html;
+            console.log('Updated recentInstances container');
+        }
+    }
+        recentContainer.innerHTML = html;
+        console.log('=== RENDER INSTANCES END ===');
+    }
 
-        function renderApiKeys() {
-            const tbody = document.getElementById('apiKeysList');
 
-            if (apiKeys.length === 0) {
-                tbody.innerHTML = `
+    function renderApiKeys() {
+        const tbody = document.getElementById('apiKeysList');
+
+        if (apiKeys.length === 0) {
+            tbody.innerHTML = `
                     <tr>
                         <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
                             No API keys found. Create one to get started.
                         </td>
                     </tr>
                 `;
-                return;
-            }
+            return;
+        }
 
-            tbody.innerHTML = apiKeys.map(key => `
+        tbody.innerHTML = apiKeys.map(key => `
                 <tr>
                     <td>${escapeHtml(key.name)}</td>
                     <td><code>${escapeHtml(key.key_prefix)}</code></td>
@@ -1284,281 +1301,281 @@
                     </td>
                 </tr>
             `).join('');
+    }
+
+    // Navigation
+    function showPage(pageId) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+        document.getElementById(pageId).classList.add('active');
+        event?.target?.classList.add('active');
+
+        if (pageId === 'instances') loadInstances();
+        if (pageId === 'api-keys') loadApiKeys();
+    }
+
+    // Modals
+    function openCreateModal() {
+        document.getElementById('createModal').classList.add('active');
+    }
+
+    function closeCreateModal() {
+        document.getElementById('createModal').classList.remove('active');
+        document.getElementById('instanceName').value = '';
+        document.getElementById('createInstanceStatus').innerHTML = '';
+    }
+
+    function openCreateApiKeyModal() {
+        document.getElementById('createApiKeyModal').classList.add('active');
+    }
+
+    function closeCreateApiKeyModal() {
+        document.getElementById('createApiKeyModal').classList.remove('active');
+        document.getElementById('apiKeyName').value = '';
+        document.getElementById('createApiKeyStatus').innerHTML = '';
+    }
+
+    // Create Instance
+    async function createInstance() {
+        const name = document.getElementById('instanceName').value.trim();
+        const memory = document.getElementById('memoryLimit').value;
+        const version = document.getElementById('redisVersion').value;
+        const persistence = document.getElementById('persistenceEnabled').checked;
+        const status = document.getElementById('createInstanceStatus');
+
+        if (!name) {
+            status.innerHTML = '<div class="message message-error">Instance name is required</div>';
+            return;
         }
 
-        // Navigation
-        function showPage(pageId) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        status.innerHTML = '<div class="message message-info">Creating instance...</div>';
 
-            document.getElementById(pageId).classList.add('active');
-            event?.target?.classList.add('active');
+        const slug = name.toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .substring(0, 50) + '-' + Date.now().toString().substring(-6);
 
-            if (pageId === 'instances') loadInstances();
-            if (pageId === 'api-keys') loadApiKeys();
-        }
+        try {
+            const res = await fetch(`${API_BASE}/api/organizations/${orgId}/redis-instances`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name,
+                    slug,
+                    organization_id: orgId,
+                    max_memory: parseInt(memory),
+                    redis_version: version,
+                    persistence_enabled: persistence,
+                    backup_enabled: false
+                })
+            });
 
-        // Modals
-        function openCreateModal() {
-            document.getElementById('createModal').classList.add('active');
-        }
+            const data = await res.json();
 
-        function closeCreateModal() {
-            document.getElementById('createModal').classList.remove('active');
-            document.getElementById('instanceName').value = '';
-            document.getElementById('createInstanceStatus').innerHTML = '';
-        }
-
-        function openCreateApiKeyModal() {
-            document.getElementById('createApiKeyModal').classList.add('active');
-        }
-
-        function closeCreateApiKeyModal() {
-            document.getElementById('createApiKeyModal').classList.remove('active');
-            document.getElementById('apiKeyName').value = '';
-            document.getElementById('createApiKeyStatus').innerHTML = '';
-        }
-
-        // Create Instance
-        async function createInstance() {
-            const name = document.getElementById('instanceName').value.trim();
-            const memory = document.getElementById('memoryLimit').value;
-            const version = document.getElementById('redisVersion').value;
-            const persistence = document.getElementById('persistenceEnabled').checked;
-            const status = document.getElementById('createInstanceStatus');
-
-            if (!name) {
-                status.innerHTML = '<div class="message message-error">Instance name is required</div>';
-                return;
+            if (res.ok && data.success) {
+                showMessage('success', 'Redis instance created successfully!', 'Instance Created');
+                status.innerHTML = '<div class="message message-success">✓ Instance created successfully!</div>';
+                setTimeout(() => {
+                    closeCreateModal();
+                    loadInstances();
+                    loadQuota(); // Refresh quota information
+                }, 1500);
+            } else {
+                const errorMsg = data.message || 'Failed to create instance';
+                showMessage('error', errorMsg, 'Creation Failed');
+                status.innerHTML = `<div class="message message-error">✗ ${errorMsg}</div>`;
             }
+        } catch (err) {
+            showMessage('error', err.message, 'Error');
+            status.innerHTML = `<div class="message message-error">✗ Error: ${err.message}</div>`;
+        }
+    }
 
-            status.innerHTML = '<div class="message message-info">Creating instance...</div>';
+    // Create API Key
+    async function createApiKey() {
+        const name = document.getElementById('apiKeyName').value.trim();
+        const scopesSelect = document.getElementById('apiKeyScopes');
+        const scopes = Array.from(scopesSelect.selectedOptions).map(o => o.value);
+        const status = document.getElementById('createApiKeyStatus');
 
-            const slug = name.toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '')
-                .substring(0, 50) + '-' + Date.now().toString().substring(-6);
-
-            try {
-                const res = await fetch(`${API_BASE}/api/organizations/${orgId}/redis-instances`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        name,
-                        slug,
-                        organization_id: orgId,
-                        max_memory: parseInt(memory),
-                        redis_version: version,
-                        persistence_enabled: persistence,
-                        backup_enabled: false
-                    })
-                });
-
-                const data = await res.json();
-
-                if (res.ok && data.success) {
-                    showMessage('success', 'Redis instance created successfully!', 'Instance Created');
-                    status.innerHTML = '<div class="message message-success">✓ Instance created successfully!</div>';
-                    setTimeout(() => {
-                        closeCreateModal();
-                        loadInstances();
-                        loadQuota(); // Refresh quota information
-                    }, 1500);
-                } else {
-                    const errorMsg = data.message || 'Failed to create instance';
-                    showMessage('error', errorMsg, 'Creation Failed');
-                    status.innerHTML = `<div class="message message-error">✗ ${errorMsg}</div>`;
-                }
-            } catch (err) {
-                showMessage('error', err.message, 'Error');
-                status.innerHTML = `<div class="message message-error">✗ Error: ${err.message}</div>`;
-            }
+        if (!name) {
+            status.innerHTML = '<div class="message message-error">API key name is required</div>';
+            return;
         }
 
-        // Create API Key
-        async function createApiKey() {
-            const name = document.getElementById('apiKeyName').value.trim();
-            const scopesSelect = document.getElementById('apiKeyScopes');
-            const scopes = Array.from(scopesSelect.selectedOptions).map(o => o.value);
-            const status = document.getElementById('createApiKeyStatus');
+        status.innerHTML = '<div class="message message-info">Creating API key...</div>';
 
-            if (!name) {
-                status.innerHTML = '<div class="message message-error">API key name is required</div>';
-                return;
-            }
+        try {
+            const res = await fetch(`${API_BASE}/api/organizations/${orgId}/api-keys`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name,
+                    organization_id: orgId,
+                    scopes: scopes.length > 0 ? scopes : ['read', 'write']
+                })
+            });
 
-            status.innerHTML = '<div class="message message-info">Creating API key...</div>';
+            const data = await res.json();
 
-            try {
-                const res = await fetch(`${API_BASE}/api/organizations/${orgId}/api-keys`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        name,
-                        organization_id: orgId,
-                        scopes: scopes.length > 0 ? scopes : ['read', 'write']
-                    })
-                });
-
-                const data = await res.json();
-
-                if (res.ok && data.success) {
-                    status.innerHTML = `
+            if (res.ok && data.success) {
+                status.innerHTML = `
                         <div class="message message-success">
                             ✓ API Key created successfully!<br>
                             <strong>Key:</strong> <code>${data.data.key_token}</code>
                             <button class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('${data.data.key_token}')">Copy</button>
                         </div>
                     `;
-                    setTimeout(() => {
-                        closeCreateApiKeyModal();
-                        loadApiKeys();
-                        loadQuota(); // Refresh quota information
-                    }, 3000);
-                } else {
-                    status.innerHTML = `<div class="message message-error">✗ ${data.message || 'Failed to create API key'}</div>`;
-                }
-            } catch (err) {
-                status.innerHTML = `<div class="message message-error">✗ Error: ${err.message}</div>`;
-            }
-        }
-
-        // Redis Commands
-        async function testPing(instanceId) {
-            const output = document.getElementById(`output-${instanceId}`);
-            output.textContent = 'Executing PING...';
-
-            try {
-                const res = await fetch(`${API_BASE}/redis/${instanceId}/ping`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                output.textContent = JSON.stringify(data, null, 2);
-            } catch (err) {
-                output.textContent = `Error: ${err.message}`;
-            }
-        }
-
-        async function testSet(instanceId) {
-            const key = document.getElementById(`key-${instanceId}`).value;
-            const value = document.getElementById(`value-${instanceId}`).value;
-            const output = document.getElementById(`output-${instanceId}`);
-
-            if (!key || !value) {
-                output.textContent = 'Error: Both key and value are required for SET';
-                return;
-            }
-
-            output.textContent = `Executing SET ${key} ${value}...`;
-
-            try {
-                const res = await fetch(`${API_BASE}/redis/${instanceId}/set/${key}/${value}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                output.textContent = JSON.stringify(data, null, 2);
-            } catch (err) {
-                output.textContent = `Error: ${err.message}`;
-            }
-        }
-
-        async function testGet(instanceId) {
-            const key = document.getElementById(`key-${instanceId}`).value;
-            const output = document.getElementById(`output-${instanceId}`);
-
-            if (!key) {
-                output.textContent = 'Error: Key is required for GET';
-                return;
-            }
-
-            output.textContent = `Executing GET ${key}...`;
-
-            try {
-                const res = await fetch(`${API_BASE}/redis/${instanceId}/get/${key}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                output.textContent = JSON.stringify(data, null, 2);
-            } catch (err) {
-                output.textContent = `Error: ${err.message}`;
-            }
-        }
-
-        // Delete Instance
-        async function deleteInstance(id) {
-            if (!confirm('Are you sure you want to delete this instance? This action cannot be undone.')) {
-                return;
-            }
-
-            try {
-                const res = await fetch(`${API_BASE}/api/organizations/${orgId}/redis-instances/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (res.ok) {
-                    loadInstances();
-                    loadQuota(); // Refresh quota information
-                } else {
-                    const data = await res.json();
-                    alert(`Failed to delete: ${data.message}`);
-                }
-            } catch (err) {
-                alert(`Error: ${err.message}`);
-            }
-        }
-
-        // Delete API Key
-        async function deleteApiKey(id) {
-            if (!confirm('Are you sure you want to delete this API key?')) {
-                return;
-            }
-
-            try {
-                const res = await fetch(`${API_BASE}/api/organizations/${orgId}/api-keys/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (res.ok) {
+                setTimeout(() => {
+                    closeCreateApiKeyModal();
                     loadApiKeys();
                     loadQuota(); // Refresh quota information
-                } else {
-                    const data = await res.json();
-                    alert(`Failed to delete: ${data.message}`);
-                }
-            } catch (err) {
-                alert(`Error: ${err.message}`);
+                }, 3000);
+            } else {
+                status.innerHTML = `<div class="message message-error">✗ ${data.message || 'Failed to create API key'}</div>`;
             }
+        } catch (err) {
+            status.innerHTML = `<div class="message message-error">✗ Error: ${err.message}</div>`;
+        }
+    }
+
+    // Redis Commands
+    async function testPing(instanceId) {
+        const output = document.getElementById(`output-${instanceId}`);
+        output.textContent = 'Executing PING...';
+
+        try {
+            const res = await fetch(`${API_BASE}/redis/${instanceId}/ping`, {
+                headers: {'Authorization': `Bearer ${token}`}
+            });
+            const data = await res.json();
+            output.textContent = JSON.stringify(data, null, 2);
+        } catch (err) {
+            output.textContent = `Error: ${err.message}`;
+        }
+    }
+
+    async function testSet(instanceId) {
+        const key = document.getElementById(`key-${instanceId}`).value;
+        const value = document.getElementById(`value-${instanceId}`).value;
+        const output = document.getElementById(`output-${instanceId}`);
+
+        if (!key || !value) {
+            output.textContent = 'Error: Both key and value are required for SET';
+            return;
         }
 
-        // Toast Notification System
-        function showMessage(type, message, title = null, duration = 5000) {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
+        output.textContent = `Executing SET ${key} ${value}...`;
 
-            const icons = {
-                success: '✓',
-                error: '✗',
-                warning: '⚠',
-                info: 'ℹ'
-            };
+        try {
+            const res = await fetch(`${API_BASE}/redis/${instanceId}/set/${key}/${value}`, {
+                headers: {'Authorization': `Bearer ${token}`}
+            });
+            const data = await res.json();
+            output.textContent = JSON.stringify(data, null, 2);
+        } catch (err) {
+            output.textContent = `Error: ${err.message}`;
+        }
+    }
 
-            const titles = {
-                success: title || 'Success',
-                error: title || 'Error',
-                warning: title || 'Warning',
-                info: title || 'Info'
-            };
+    async function testGet(instanceId) {
+        const key = document.getElementById(`key-${instanceId}`).value;
+        const output = document.getElementById(`output-${instanceId}`);
 
-            toast.innerHTML = `
+        if (!key) {
+            output.textContent = 'Error: Key is required for GET';
+            return;
+        }
+
+        output.textContent = `Executing GET ${key}...`;
+
+        try {
+            const res = await fetch(`${API_BASE}/redis/${instanceId}/get/${key}`, {
+                headers: {'Authorization': `Bearer ${token}`}
+            });
+            const data = await res.json();
+            output.textContent = JSON.stringify(data, null, 2);
+        } catch (err) {
+            output.textContent = `Error: ${err.message}`;
+        }
+    }
+
+    // Delete Instance
+    async function deleteInstance(id) {
+        if (!confirm('Are you sure you want to delete this instance? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/api/organizations/${orgId}/redis-instances/${id}`, {
+                method: 'DELETE',
+                headers: {'Authorization': `Bearer ${token}`}
+            });
+
+            if (res.ok) {
+                loadInstances();
+                loadQuota(); // Refresh quota information
+            } else {
+                const data = await res.json();
+                alert(`Failed to delete: ${data.message}`);
+            }
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        }
+    }
+
+    // Delete API Key
+    async function deleteApiKey(id) {
+        if (!confirm('Are you sure you want to delete this API key?')) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/api/organizations/${orgId}/api-keys/${id}`, {
+                method: 'DELETE',
+                headers: {'Authorization': `Bearer ${token}`}
+            });
+
+            if (res.ok) {
+                loadApiKeys();
+                loadQuota(); // Refresh quota information
+            } else {
+                const data = await res.json();
+                alert(`Failed to delete: ${data.message}`);
+            }
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        }
+    }
+
+    // Toast Notification System
+    function showMessage(type, message, title = null, duration = 5000) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+
+        const icons = {
+            success: '✓',
+            error: '✗',
+            warning: '⚠',
+            info: 'ℹ'
+        };
+
+        const titles = {
+            success: title || 'Success',
+            error: title || 'Error',
+            warning: title || 'Warning',
+            info: title || 'Info'
+        };
+
+        toast.innerHTML = `
                 <div class="toast-icon">${icons[type] || icons.info}</div>
                 <div class="toast-content">
                     <div class="toast-title">${titles[type]}</div>
@@ -1567,56 +1584,56 @@
                 <button class="toast-close" onclick="this.parentElement.remove()">×</button>
             `;
 
-            container.appendChild(toast);
+        container.appendChild(toast);
 
-            // Auto remove after duration
-            if (duration > 0) {
-                setTimeout(() => {
-                    toast.style.animation = 'slideIn 0.3s ease-out reverse';
-                    setTimeout(() => toast.remove(), 300);
-                }, duration);
-            }
+        // Auto remove after duration
+        if (duration > 0) {
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
         }
+    }
 
-        // Logout
-        function logout() {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('organizationId');
-            localStorage.removeItem('apiKey');
-            window.location.href = '/index.html';
-        }
+    // Logout
+    function logout() {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('organizationId');
+        localStorage.removeItem('apiKey');
+        window.location.href = '/index.html';
+    }
 
-        // Utilities
-        function formatBytes(bytes) {
-            if (!bytes) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return Math.round(bytes / Math.pow(k, i)) + ' ' + sizes[i];
-        }
+    // Utilities
+    function formatBytes(bytes) {
+        if (!bytes) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i)) + ' ' + sizes[i];
+    }
 
-        function formatDate(dateStr) {
-            if (!dateStr) return 'N/A';
-            const date = new Date(dateStr);
-            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-        }
+    function formatDate(dateStr) {
+        if (!dateStr) return 'N/A';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-        function copyToken() {
-            navigator.clipboard.writeText(token);
-            alert('Token copied to clipboard!');
-        }
+    function copyToken() {
+        navigator.clipboard.writeText(token);
+        alert('Token copied to clipboard!');
+    }
 
-        function viewInstance(id) {
-            // TODO: Implement detailed view
-            alert('Instance details: ' + id);
-        }
-    </script>
+    function viewInstance(id) {
+        // TODO: Implement detailed view
+        alert('Instance details: ' + id);
+    }
+</script>
 </body>
 </html>
 
