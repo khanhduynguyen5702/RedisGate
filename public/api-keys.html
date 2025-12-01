@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Keys - RedisGate</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 28px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .api-key-list {
+            margin-top: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .api-key-item {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+
+        .api-key-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .key-info {
+            flex: 1;
+        }
+
+        .key-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .key-value {
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 8px 0;
+            word-break: break-all;
+            font-size: 13px;
+            color: #495057;
+            border: 1px solid #dee2e6;
+        }
+
+        .key-meta {
+            display: flex;
+            gap: 20px;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .key-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .error {
+            color: #dc3545;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .success {
+            color: #28a745;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .modal-actions {
+            margin-top: 30px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .copy-btn:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔑 API Keys Management</h1>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="goToDashboard()">
+                    ← Back to Dashboard
+                </button>
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    + Create New API Key
+                </button>
+            </div>
+        </header>
+
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <p>Loading API keys...</p>
+        </div>
+
+        <div id="apiKeyList" class="api-key-list" style="display: none;">
+            <!-- API keys will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Create API Key Modal -->
+    <div class="modal" id="createModal">
+        <div class="modal-content">
+            <h2>Create New API Key</h2>
+            <div class="form-group">
+                <label for="keyName">Key Name (optional)</label>
+                <input type="text" id="keyName" placeholder="e.g., Production API Key">
+            </div>
+            <div class="form-group">
+                <label for="keyScopes">Scopes (optional)</label>
+                <input type="text" id="keyScopes" placeholder="e.g., read,write (comma-separated)">
+            </div>
+            <div id="createError" class="error"></div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createApiKey()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000';
+        let authToken = localStorage.getItem('auth_token');
+        let currentOrgId = localStorage.getItem('current_org_id');
+
+        // Check authentication on page load
+        window.onload = () => {
+            if (!authToken || !currentOrgId) {
+                alert('Please login first');
+                window.location.href = 'index.html';
+                return;
+            }
+            loadApiKeys();
+        };
+
+        function goToDashboard() {
+            window.location.href = 'dashboard.html';
+        }
+
+        async function loadApiKeys() {
+            const loadingEl = document.getElementById('loadingState');
+            const listEl = document.getElementById('apiKeyList');
+
+            try {
+                const response = await fetch(
+                    `${API_BASE}/api/organizations/${currentOrgId}/api-keys`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        alert('Session expired. Please login again.');
+                        window.location.href = 'index.html';
+                        return;
+                    }
+                    throw new Error('Failed to load API keys');
+                }
+
+                const result = await response.json();
+                const keys = result.data || [];
+
+                loadingEl.style.display = 'none';
+                listEl.style.display = 'block';
+                displayApiKeys(keys);
+            } catch (error) {
+                console.error('Error loading API keys:', error);
+                loadingEl.innerHTML = `
+                    <p class="error">Failed to load API keys: ${error.message}</p>
+                    <button class="btn btn-primary" onclick="loadApiKeys()">Retry</button>
+                `;
+            }
+        }
+
+        function displayApiKeys(keys) {
+            const listEl = document.getElementById('apiKeyList');
+
+            if (keys.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <h3>No API Keys Found</h3>
+                        <p>Create your first API key to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = keys.map(key => `
+                <div class="api-key-item">
+                    <div class="key-info">
+                        <div class="key-name">${escapeHtml(key.name || 'Unnamed Key')}</div>
+                        <div class="key-value">
+                            ${maskApiKey(key.key_prefix || key.key_token || 'N/A')}
+                            ${key.key_token ? `<button class="copy-btn" onclick="copyToClipboard('${key.key_token}')">Copy</button>` : ''}
+                        </div>
+                        <div class="key-meta">
+                            <span>Created: ${new Date(key.created_at).toLocaleString()}</span>
+                            ${key.expires_at ? `<span>Expires: ${new Date(key.expires_at).toLocaleString()}</span>` : '<span>Never expires</span>'}
+                            <span class="badge ${key.is_active ? 'badge-success' : 'badge-danger'}">
+                                ${key.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="key-actions">
+                        <button class="btn btn-danger" onclick="deleteApiKey('${key.id}', '${escapeHtml(key.name || 'this key')}')">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function maskApiKey(key) {
+            if (!key || key === 'N/A') return 'N/A';
+            if (key.length <= 12) return key;
+            return `${key.substring(0, 8)}...${key.substring(key.length - 4)}`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('API key copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+
+        function openCreateModal() {
+            document.getElementById('createModal').classList.add('active');
+            document.getElementById('keyName').value = '';
+            document.getElementById('keyScopes').value = '';
+            document.getElementById('createError').textContent = '';
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('active');
+        }
+
+        async function createApiKey() {
+            const name = document.getElementById('keyName').value.trim();
+            const scopesInput = document.getElementById('keyScopes').value.trim();
+            const errorEl = document.getElementById('createError');
+
+            const scopes = scopesInput ? scopesInput.split(',').map(s => s.trim()) : [];
+
+            try {
+                const response = await fetch(
+                    `${API_BASE}/api/organizations/${currentOrgId}/api-keys`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: name || undefined,
+                            scopes: scopes.length > 0 ? scopes : undefined,
+                            organization_id: currentOrgId
+                        })
+                    }
+                );
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to create API key');
+                }
+
+                const result = await response.json();
+                const newKey = result.data;
+
+                // Show the full key (only shown once!)
+                const keyDisplay = newKey.raw_key || newKey.key_token || 'Key created successfully';
+                alert(`✅ API Key created successfully!\n\nKey: ${keyDisplay}\n\n⚠️ IMPORTANT: Save this key now - you won't be able to see it again!`);
+
+                closeCreateModal();
+                loadApiKeys();
+            } catch (error) {
+                errorEl.textContent = error.message;
+            }
+        }
+
+        async function deleteApiKey(keyId, keyName) {
+            if (!confirm(`Are you sure you want to delete "${keyName}"?\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `${API_BASE}/api/organizations/${currentOrgId}/api-keys/${keyId}`,
+                    {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete API key');
+                }
+
+                alert('✅ API key deleted successfully');
+                loadApiKeys();
+            } catch (error) {
+                alert(`❌ Error deleting API key: ${error.message}`);
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('createModal').addEventListener('click', (e) => {
+            if (e.target.id === 'createModal') {
+                closeCreateModal();
+            }
+        });
+    </script>
+</body>
+</html>
+

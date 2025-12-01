@@ -296,15 +296,7 @@
             text-transform: uppercase;
         }
 
-        .status-active {
-            background: rgba(34, 197, 94, 0.2);
-            color: var(--success);
-        }
 
-        .status-inactive {
-            background: rgba(148, 163, 184, 0.2);
-            color: var(--text-secondary);
-        }
 
         .status-simulation {
             background: rgba(245, 158, 11, 0.2);
@@ -346,39 +338,6 @@
             margin-top: 1rem;
         }
 
-        /* Redis Tester */
-        .redis-tester {
-            background: var(--bg-primary);
-            border-radius: 6px;
-            padding: 1rem;
-            margin-top: 1rem;
-        }
-
-        .command-group {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 0.5rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .command-output {
-            background: var(--bg-secondary);
-            padding: 1rem;
-            border-radius: 6px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.8125rem;
-            margin-top: 1rem;
-            white-space: pre-wrap;
-            word-break: break-all;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        /* Tables */
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-        }
 
         .table th {
             text-align: left;
@@ -517,16 +476,7 @@
             }
         }
 
-        /* Loading Spinner */
-        .spinner {
-            border: 3px solid var(--bg-tertiary);
-            border-top: 3px solid var(--accent);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 2rem auto;
-        }
+
 
         @keyframes spin {
             0% {
@@ -537,11 +487,7 @@
             }
         }
 
-        .loading-text {
-            text-align: center;
-            color: var(--text-secondary);
-            margin-top: 1rem;
-        }
+
 
         /* Empty State */
         .empty-state {
@@ -577,19 +523,6 @@
             gap: 0.5rem;
         }
 
-        .toast {
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            padding: 1rem 1.5rem;
-            min-width: 300px;
-            max-width: 500px;
-            border-left: 4px solid var(--accent);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            animation: slideIn 0.3s ease-out;
-        }
 
         @keyframes slideIn {
             from {
@@ -602,21 +535,7 @@
             }
         }
 
-        .toast.toast-success {
-            border-left-color: var(--success);
-        }
 
-        .toast.toast-error {
-            border-left-color: var(--error);
-        }
-
-        .toast.toast-warning {
-            border-left-color: var(--warning);
-        }
-
-        .toast.toast-info {
-            border-left-color: var(--accent);
-        }
 
         .toast-icon {
             font-size: 1.25rem;
@@ -674,9 +593,7 @@
         <div class="nav-item" onclick="showPage('instances')">
             🗄️ Redis Instances
         </div>
-        <div class="nav-item" onclick="showPage('api-keys')">
-            🔑 API Keys
-        </div>
+
         <div class="nav-item" onclick="showPage('settings')">
             ⚙️ Settings
         </div>
@@ -759,15 +676,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Recent Activity -->
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Recent Instances</h2>
-                    <button class="btn btn-primary btn-sm" onclick="showPage('instances')">View All</button>
-                </div>
-                <div id="recentInstances"></div>
-            </div>
         </div>
 
         <!-- Instances Page -->
@@ -780,28 +688,7 @@
             <div id="instancesList" class="instance-grid"></div>
         </div>
 
-        <!-- API Keys Page -->
-        <div id="api-keys" class="page">
-            <div class="card-header">
-                <h1>API Keys</h1>
-                <button class="btn btn-primary" onclick="openCreateApiKeyModal()">+ Create API Key</button>
-            </div>
 
-            <div class="card">
-                <table class="table">
-                    <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Key Prefix</th>
-                        <th>Scopes</th>
-                        <th>Created</th>
-                        <th>Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody id="apiKeysList"></tbody>
-                </table>
-            </div>
-        </div>
 
         <!-- Settings Page -->
         <div id="settings" class="page">
@@ -826,11 +713,61 @@
                     <strong>API Base URL:</strong> <code id="apiBaseUrl"></code>
                 </div>
                 <div class="message message-info">
-                    <strong>Your Auth Token:</strong>
+                    <strong>Your Auth Token (Dashboard):</strong>
                     <div class="code-block">
                         <button class="btn btn-sm btn-secondary copy-btn" onclick="copyToken()">Copy</button>
                         <code id="authToken"></code>
                     </div>
+                </div>
+                <div class="message message-success" id="apiKeySection" style="display: none;">
+                    <strong>🔑 Your Redis API Key (For Redis Operations):</strong>
+                    <div class="code-block">
+                        <button class="btn btn-sm btn-success copy-btn" onclick="copyApiKey()">Copy</button>
+                        <code id="redisApiKey"></code>
+                    </div>
+                    <small style="color: #666; display: block; margin-top: 0.5rem;">
+                        Use this API key to connect to Redis instances via HTTP API
+                    </small>
+                </div>
+                <div class="message message-warning" id="noApiKeySection" style="display: none;">
+                    <strong>⚠️ No Redis API Key Found</strong>
+                    <p>You need an organization and API key to use Redis instances.</p>
+                    <button class="btn btn-primary" onclick="generateApiKey()">Generate API Key</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">📖 How to Use Redis API</h2>
+                <div style="background: #0f172a; padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+                    <h3 style="color: var(--accent); margin-bottom: 1rem;">Example API Calls</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                        Use your API key to perform Redis operations via HTTP:
+                    </p>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <strong style="color: var(--success);">1. PING (Test Connection)</strong>
+                        <pre style="background: #1e293b; padding: 1rem; border-radius: 4px; overflow-x: auto; margin-top: 0.5rem;"><code>GET /redis/{instance_id}/ping?_token=YOUR_API_KEY</code></pre>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <strong style="color: var(--success);">2. SET Key</strong>
+                        <pre style="background: #1e293b; padding: 1rem; border-radius: 4px; overflow-x: auto; margin-top: 0.5rem;"><code>GET /redis/{instance_id}/set/mykey/myvalue?_token=YOUR_API_KEY</code></pre>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <strong style="color: var(--success);">3. GET Key</strong>
+                        <pre style="background: #1e293b; padding: 1rem; border-radius: 4px; overflow-x: auto; margin-top: 0.5rem;"><code>GET /redis/{instance_id}/get/mykey?_token=YOUR_API_KEY</code></pre>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <strong style="color: var(--success);">4. Using with curl</strong>
+                        <pre style="background: #1e293b; padding: 1rem; border-radius: 4px; overflow-x: auto; margin-top: 0.5rem;"><code>curl -H "Authorization: Bearer YOUR_API_KEY" \\
+     http://localhost:3000/redis/{instance_id}/ping</code></pre>
+                    </div>
+
+                    <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 1rem;">
+                        💡 Replace <code>{instance_id}</code> with your actual instance ID from the Instances page.
+                    </p>
                 </div>
             </div>
         </div>
@@ -928,12 +865,45 @@
     console.log('=== Dashboard Initialization ===');
     console.log('API_BASE:', API_BASE);
     console.log('Token exists:', !!token);
+    console.log('Token (first 50 chars):', token ? token.substring(0, 50) + '...' : 'null');
     console.log('Organization ID:', orgId);
+
+    // Test token immediately
+    if (token) {
+        console.log('🔍 Testing token validity...');
+        fetch(`${API_BASE}/auth/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => {
+            console.log('Token test response status:', res.status);
+            if (res.status === 401) {
+                console.error('❌ Token is INVALID! Status: 401');
+                console.log('🔄 Clearing invalid token and redirecting to login...');
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('organizationId');
+                alert('⚠️ Your session has expired or is invalid.\n\nPlease login again.\n\nClick OK to go to login page.');
+                window.location.href = '/';
+                return null;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data) {
+                console.log('✅ Token is VALID! User:', data);
+            }
+        })
+        .catch(err => {
+            console.error('❌ Token test failed:', err);
+        });
+    }
 
     // Initialize
     if (!token) {
         console.log('No token found - redirecting to login');
-        window.location.href = '/index.html';
+        window.location.href = '/login.html';
     } else {
         console.log('Token found - initializing dashboard');
         init();
@@ -1068,8 +1038,13 @@
             console.log('Response status:', res.status);
 
             if (res.status === 401) {
+                console.error('⚠️ 401 Unauthorized - Token is invalid or expired');
                 showMessage('error', 'Session expired. Please login again.');
-                setTimeout(() => logout(), 2000);
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('organizationId');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
                 return;
             }
 
@@ -1255,12 +1230,11 @@
                     </div>
                     <div class="meta-item">
                         <div class="meta-label">Instance ID</div>
-                        <div class="meta-value">${inst.id.substring(0, 8)}...</div>
+                        <div class="meta-value">${inst.id.substring(0, 50)}</div>
                     </div>
                 </div>
 
                 <div class="instance-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="viewInstance('${inst.id}')">View Details</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteInstance('${inst.id}')">Delete</button>
                 </div>
             </div>
@@ -1316,6 +1290,40 @@
 
         if (pageId === 'instances') loadInstances();
         if (pageId === 'api-keys') loadApiKeys();
+        if (pageId === 'settings') loadSettings();
+    }
+
+    // Load Settings
+    function loadSettings() {
+        // Display API Base URL
+        document.getElementById('apiBaseUrl').textContent = API_BASE;
+
+        // Display Auth Token
+        document.getElementById('authToken').textContent = token ? token.substring(0, 80) + '...' : 'Not found';
+
+        // Display API Key for Redis operations
+        const apiKey = localStorage.getItem('apiKey');
+        const apiKeySection = document.getElementById('apiKeySection');
+        const noApiKeySection = document.getElementById('noApiKeySection');
+
+        if (apiKey && apiKey !== 'null') {
+            apiKeySection.style.display = 'block';
+            noApiKeySection.style.display = 'none';
+            document.getElementById('redisApiKey').textContent = apiKey.substring(0, 80) + '...';
+            console.log('✅ Redis API Key loaded');
+        } else {
+            apiKeySection.style.display = 'none';
+            noApiKeySection.style.display = 'block';
+            console.log('⚠️ No Redis API Key found');
+        }
+
+        // Display Organization info
+        if (organization) {
+            document.getElementById('orgName').value = organization.name || '';
+            document.getElementById('orgId').value = organization.id || orgId || '';
+        } else {
+            document.getElementById('orgId').value = orgId || '';
+        }
     }
 
     // Modals
@@ -1603,7 +1611,7 @@
         localStorage.removeItem('authToken');
         localStorage.removeItem('organizationId');
         localStorage.removeItem('apiKey');
-        window.location.href = '/index.html';
+        window.location.href = '/';
     }
 
     // Utilities
@@ -1632,8 +1640,56 @@
         alert('Token copied to clipboard!');
     }
 
+    function copyApiKey() {
+        const apiKey = localStorage.getItem('apiKey');
+        if (apiKey) {
+            navigator.clipboard.writeText(apiKey);
+            alert('✅ Redis API Key copied to clipboard!');
+        } else {
+            alert('❌ No API key found');
+        }
+    }
+
+    async function generateApiKey() {
+        if (!orgId || orgId === 'null') {
+            showMessage('error', 'Please create an organization first');
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/api/organizations/${orgId}/api-keys`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: 'Redis API Key - Auto Generated',
+                    organization_id: orgId,
+                    scopes: ['*']
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.data) {
+                    // The API returns the key_token in the response
+                    const newApiKey = data.data.key_token;
+                    localStorage.setItem('apiKey', newApiKey);
+                    showMessage('success', '✅ API Key generated successfully!');
+                    loadSettings(); // Reload settings to show the new key
+                }
+            } else {
+                const error = await res.json();
+                showMessage('error', 'Failed to generate API key: ' + (error.message || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error('Error generating API key:', err);
+            showMessage('error', 'Network error generating API key');
+        }
+    }
+
     function viewInstance(id) {
-        // TODO: Implement detailed view
         alert('Instance details: ' + id);
     }
 </script>

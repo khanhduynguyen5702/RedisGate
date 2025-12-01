@@ -10,6 +10,7 @@ use sqlx::{Row, types::BigDecimal};
 use std::sync::Arc;
 use uuid::Uuid;
 use validator::Validate;
+use tracing::{info, warn, error, debug, instrument};
 
 use crate::api_models::{
     ApiResponse, CreateRedisInstanceRequest, PaginatedResponse, PaginationParams,

@@ -3,17 +3,22 @@ name = "redisgate"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "redisgate"
+path = "src/lib.rs"
+
 [[bin]]
 name = "redisgate"
 path = "src/main.rs"
 
 [[bin]]
-name = "demo_jwt"
-path = "demo_jwt.rs"
+name = "test_connections"
+path = "src/bin/test_connections.rs"
 
 [[bin]]
-name = "test_connections"
-path = "test_connections.rs"
+name = "decode_token"
+path = "src/bin/decode_token.rs"
+
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
@@ -21,7 +26,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 clap = { version = "4.0", features = ["derive"] }
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
@@ -53,6 +58,8 @@ tower-http = { version = "0.5", features = ["cors", "trace"] }
 # Config
 config = "0.13"
 dotenv = "0.15"
+toml = "0.8"
+num_cpus = "1.16"
 
 # Kubernetes client
 kube = "0.87"
@@ -60,6 +67,19 @@ k8s-openapi = { version = "0.20", features = ["v1_28"] }
 
 # Redis client
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# Metrics and monitoring
+prometheus = "0.13"
+metrics = "0.22"
+metrics-exporter-prometheus = "0.13"
+
+# Rate limiting
+governor = "0.6"
+nonzero_ext = "0.3"
+
+# Performance
+moka = { version = "0.12", features = ["future"] }
+dashmap = "5.5"
 
 [dev-dependencies]
 tempfile = "3.0"

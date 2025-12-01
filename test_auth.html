@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Auth Token</title>
+</head>
+<body>
+    <h1>Testing Authentication</h1>
+    <div id="result"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000';
+        const token = localStorage.getItem('authToken');
+        const orgId = localStorage.getItem('organizationId');
+
+        console.log('Token:', token);
+        console.log('Org ID:', orgId);
+
+        async function testAuth() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+
+            if (!token) {
+                resultDiv.innerHTML = '<p style="color:red">No token found in localStorage!</p>';
+                return;
+            }
+
+            if (!orgId || orgId === 'null' || orgId === 'undefined') {
+                resultDiv.innerHTML = '<p style="color:orange">No organization ID found!</p>';
+                return;
+            }
+
+            try {
+                console.log('Fetching:', `${API_BASE}/api/organizations/${orgId}/redis-instances`);
+                console.log('With token:', token.substring(0, 20) + '...');
+
+                const response = await fetch(`${API_BASE}/api/organizations/${orgId}/redis-instances`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+
+                const data = await response.json();
+                console.log('Response data:', data);
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p style="color:green">✓ Authentication successful!</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p style="color:red">✗ Authentication failed!</p>
+                        <p>Status: ${response.status}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = `
+                    <p style="color:red">✗ Error: ${error.message}</p>
+                `;
+            }
+        }
+
+        testAuth();
+    </script>
+</body>
+</html>
+

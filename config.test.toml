@@ -1,0 +1,52 @@
+# RedisGate Configuration File
+# Test Environment
+
+[server]
+host = "127.0.0.1"
+port = 0  # Random port for testing
+workers = 2
+request_timeout_seconds = 10
+max_request_size_mb = 5
+
+[database]
+url = "postgresql://redisgate_test:testpass@localhost:5432/redisgate_test"
+max_connections = 5
+min_connections = 1
+connection_timeout_seconds = 10
+idle_timeout_seconds = 60
+enable_logging = true
+
+[redis]
+default_timeout_ms = 1000
+max_retries = 1
+retry_delay_ms = 100
+pool_size = 5
+
+[rate_limit]
+default_requests_per_second = 1000  # High limit for tests
+burst_size = 50
+enabled = false  # Disable in tests for speed
+
+[metrics]
+enabled = false  # Disable in tests
+path = "/metrics"
+histogram_buckets = [0.001, 0.01, 0.1, 1.0]
+
+[health]
+enabled = false  # Disable in tests
+check_interval_seconds = 10
+
+[security]
+jwt_secret = "test_secret_key_for_automated_tests_minimum_32_characters_long"
+token_expiry_hours = 1
+api_key_expiry_days = 7
+enable_https = false
+enable_cors = true
+cors_allowed_origins = ["*"]
+
+[logging]
+level = "debug"  # Verbose for debugging tests
+json_format = false
+log_to_file = false
+log_file_path = "/tmp/redisgate_test.log"
+

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Auto Fix 401</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 500px;
+        }
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+        .success {
+            color: #2ecc71;
+            font-size: 60px;
+            animation: bounce 0.5s;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div id="status">
+            <div class="spinner"></div>
+            <h1>🔧 Đang Sửa Lỗi 401...</h1>
+            <p>Vui lòng đợi trong giây lát</p>
+        </div>
+    </div>
+
+    <script>
+        // Auto-fix function
+        async function autoFix() {
+            const statusDiv = document.getElementById('status');
+
+            // Step 1: Clear localStorage
+            await sleep(500);
+            localStorage.clear();
+            sessionStorage.clear();
+
+            // Step 2: Show success
+            statusDiv.innerHTML = `
+                <div class="success">✅</div>
+                <h1 style="color: #2ecc71;">Đã Sửa Xong!</h1>
+                <p>Token cũ đã được xóa.</p>
+                <p>Đang chuyển đến trang đăng nhập...</p>
+            `;
+
+            // Step 3: Redirect to login
+            await sleep(2000);
+            window.location.href = '/login.html';
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Auto-run when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            autoFix();
+        });
+    </script>
+</body>
+</html>
+

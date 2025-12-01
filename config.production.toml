@@ -1,0 +1,57 @@
+# RedisGate Configuration File
+# Production Environment
+
+[server]
+host = "0.0.0.0"
+port = 3000
+workers = 8  # Scale based on CPU cores
+request_timeout_seconds = 60
+max_request_size_mb = 50
+
+[database]
+# Override with DATABASE_URL environment variable
+url = "postgresql://redisgate:CHANGE_ME@postgres:5432/redisgate_production"
+max_connections = 50
+min_connections = 10
+connection_timeout_seconds = 60
+idle_timeout_seconds = 300
+enable_logging = false  # Disable in production for performance
+
+[redis]
+default_timeout_ms = 10000  # Higher timeout for production
+max_retries = 5
+retry_delay_ms = 2000
+pool_size = 50
+
+[rate_limit]
+default_requests_per_second = 500  # Higher limit for production
+burst_size = 100
+enabled = true
+
+[metrics]
+enabled = true
+path = "/metrics"
+histogram_buckets = [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+
+[health]
+enabled = true
+check_interval_seconds = 60
+
+[security]
+# MUST override with JWT_SECRET environment variable in production!
+jwt_secret = "CHANGE_ME_IN_PRODUCTION_USE_ENV_VAR_JWT_SECRET_MINIMUM_32_CHARACTERS"
+token_expiry_hours = 12  # Shorter in production
+api_key_expiry_days = 90  # Shorter expiry for production
+enable_https = true  # Enable HTTPS in production
+enable_cors = true
+cors_allowed_origins = [
+    "https://yourdomain.com",
+    "https://api.yourdomain.com"
+]
+
+[logging]
+level = "warn"  # Less verbose in production
+json_format = true  # Structured logging for production
+log_to_file = true
+log_file_path = "/var/log/redisgate/redisgate.log"
+

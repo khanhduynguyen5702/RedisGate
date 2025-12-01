@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sửa Lỗi 401 - RedisGate</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #e74c3c;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .icon {
+            font-size: 80px;
+            margin: 20px 0;
+        }
+        p {
+            color: #555;
+            font-size: 1.1em;
+            margin: 15px 0;
+            line-height: 1.6;
+        }
+        .big-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 1.3em;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+        }
+        .big-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        .steps {
+            text-align: left;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .step {
+            margin: 15px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        .step:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #2ecc71;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .code-box {
+            background: #2d3748;
+            color: #a0aec0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            text-align: left;
+            overflow-x: auto;
+        }
+        #status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .success-status {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        .error-status {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">🔐</div>
+        <h1>Lỗi 401 Unauthorized</h1>
+        <p><strong>Token của bạn đã hết hạn hoặc không hợp lệ!</strong></p>
+
+        <div id="status"></div>
+
+        <button class="big-button" onclick="fixNow()">
+            🔧 SỬA NGAY BÂY GIỜ
+        </button>
+
+        <div class="steps">
+            <h3 style="color: #667eea; margin-bottom: 15px;">Công cụ sẽ tự động:</h3>
+            <div class="step">Xóa token cũ không hợp lệ</div>
+            <div class="step">Clear toàn bộ localStorage</div>
+            <div class="step">Chuyển về trang đăng nhập</div>
+        </div>
+
+        <p style="font-size: 0.95em; color: #777;">
+            Sau đó bạn đăng nhập lại với:<br>
+            <strong>Email:</strong> test@example.com<br>
+            <strong>Password:</strong> Password123!
+        </p>
+
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+
+        <details style="text-align: left;">
+            <summary style="cursor: pointer; color: #667eea; font-weight: bold;">
+                📖 Tại sao bị lỗi 401?
+            </summary>
+            <div style="margin-top: 15px; color: #666; font-size: 0.9em;">
+                <p><strong>Nguyên nhân phổ biến:</strong></p>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li>Token đã hết hạn (thời hạn: 24 giờ)</li>
+                    <li>Server đã restart với secret key khác</li>
+                    <li>Token bị lỗi khi lưu vào localStorage</li>
+                </ul>
+                <p style="margin-top: 15px;"><strong>Giải pháp:</strong> Đăng nhập lại để lấy token mới!</p>
+            </div>
+        </details>
+    </div>
+
+    <script>
+        // Check current status
+        function checkStatus() {
+            const token = localStorage.getItem('authToken');
+            const statusDiv = document.getElementById('status');
+
+            if (token) {
+                statusDiv.className = 'error-status';
+                statusDiv.innerHTML = '⚠️ Phát hiện token không hợp lệ: ' + token.substring(0, 30) + '...';
+            } else {
+                statusDiv.className = 'success-status';
+                statusDiv.innerHTML = '✓ Không có token cũ. Bạn chỉ cần đăng nhập!';
+            }
+        }
+
+        function fixNow() {
+            const confirmed = confirm(
+                '🔧 Công cụ sẽ thực hiện:\n\n' +
+                '1. Xóa token cũ\n' +
+                '2. Clear localStorage\n' +
+                '3. Chuyển về trang login\n\n' +
+                'Bạn có muốn tiếp tục?'
+            );
+
+            if (confirmed) {
+                // Clear everything
+                localStorage.clear();
+                sessionStorage.clear();
+
+                // Show success message
+                alert(
+                    '✅ Đã xóa token cũ thành công!\n\n' +
+                    'Bây giờ bạn sẽ được chuyển đến trang đăng nhập.\n\n' +
+                    'Đăng nhập với:\n' +
+                    'Email: test@example.com\n' +
+                    'Password: Password123!'
+                );
+
+                // Redirect to login
+                window.location.href = '/index.html';
+            }
+        }
+
+        // Auto-fix if URL has ?autofix=true
+        if (window.location.search.includes('autofix=true')) {
+            setTimeout(() => {
+                fixNow();
+            }, 1000);
+        }
+
+        // Check status on load
+        checkStatus();
+    </script>
+</body>
+</html>
+

@@ -390,11 +390,16 @@
                 if (res.ok && data.success && data.data) {
                     const token = data.data.token;
                     const orgId = data.data.organization_id;
+                    const apiKey = data.data.api_key; // API key for Redis operations
 
                     // Save credentials
                     localStorage.setItem('authToken', token);
                     if (orgId) {
                         localStorage.setItem('organizationId', orgId);
+                    }
+                    if (apiKey) {
+                        localStorage.setItem('apiKey', apiKey);
+                        console.log('✅ API Key saved for Redis operations');
                     }
 
                     messageEl.className = 'message message-success show';

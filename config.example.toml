@@ -1,0 +1,57 @@
+# RedisGate Configuration File
+
+[server]
+# Server binding configuration
+host = "127.0.0.1"
+port = 3000
+
+# Request timeouts
+request_timeout_secs = 30
+keepalive_timeout_secs = 60
+
+[database]
+# PostgreSQL database connection
+url = "postgres://redisgate_dev:your_password@localhost:5432/redisgate_dev"
+max_connections = 10
+min_connections = 2
+connection_timeout_secs = 30
+
+[redis]
+# Default Redis configuration for development
+default_host = "127.0.0.1"
+default_port = 6379
+connection_pool_size = 10
+connection_timeout_secs = 5
+command_timeout_secs = 10
+
+[jwt]
+# JWT token configuration
+secret = "your-secret-key-min-32-characters-long"
+access_token_expiry_hours = 24
+refresh_token_expiry_days = 30
+api_key_token_expiry_days = 365
+
+[logging]
+# Logging configuration
+level = "info"  # trace, debug, info, warn, error
+format = "json"  # json or plain
+
+[monitoring]
+# Monitoring and metrics
+enable_metrics = true
+metrics_port = 9090
+enable_health_check = true
+
+[limits]
+# Rate limiting and quotas
+max_requests_per_minute = 1000
+max_api_keys_per_org = 100
+max_redis_instances_per_org = 10
+
+[security]
+# Security settings
+cors_allow_origins = ["http://localhost:3000", "https://redisgate.io"]
+enable_tls = false
+tls_cert_path = ""
+tls_key_path = ""
+

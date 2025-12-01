@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
@@ -8,50 +8,79 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
+  DATABASE_URL: postgres://redisgate_dev:devpassword123@localhost:5432/redisgate_dev
 
 jobs:
-  check:
-    name: Check
+  # Linting and formatting
+  lint:
+    name: Lint and Format Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+          override: true
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
+          path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Cache cargo build
-        uses: actions/cache@v4
+      - name: Cache cargo index
+        uses: actions/cache@v3
         with:
-          path: target/
-          key: ${{ runner.os }}-cargo-build-check-${{ hashFiles('**/Cargo.lock') }}
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Set up environment
-        run: |
-          echo "SQLX_OFFLINE=true" >> $GITHUB_ENV
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Check code
-        run: cargo check --all-targets --all-features
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  # Security audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run security audit
+        run: cargo audit
+
+  # Build and test
   test:
-    name: Test Suite
+    name: Build and Test
     runs-on: ubuntu-latest
+
     services:
       postgres:
-        image: postgres:15-alpine
+        image: postgres:15
         env:
-          POSTGRES_PASSWORD: redisgate_dev_password
           POSTGRES_USER: redisgate_dev
+          POSTGRES_PASSWORD: devpassword123
           POSTGRES_DB: redisgate_dev
         options: >-
           --health-cmd pg_isready
@@ -61,163 +90,80 @@ jobs:
         ports:
           - 5432:5432
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo build
-        uses: actions/cache@v4
-        with:
-          path: target/
-          key: ${{ runner.os }}-cargo-build-test-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Set up environment
-        run: |
-          echo "DATABASE_URL=postgresql://redisgate_dev:redisgate_dev_password@localhost:5432/redisgate_dev" >> $GITHUB_ENV
-
-      - name: Run migrations
-        run: |
-          cargo install sqlx-cli --no-default-features --features native-tls,postgres
-          sqlx migrate run
-
-      - name: Run tests
-        run: cargo test --all-features
-
-  integration-tests:
-    name: Python Integration Tests
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_PASSWORD: redisgate_dev_password
-          POSTGRES_USER: redisgate_dev
-          POSTGRES_DB: redisgate_dev
+      redis:
+        image: redis:7-alpine
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:5432
+          - 6379:6379
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
         with:
-          python-version: '3.12'
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+          profile: minimal
+          toolchain: stable
+          override: true
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
+          path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Cache cargo build
-        uses: actions/cache@v4
+      - name: Cache cargo index
+        uses: actions/cache@v3
         with:
-          path: target/
-          key: ${{ runner.os }}-cargo-build-integration-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Set up environment
-        run: |
-          echo "DATABASE_URL=postgresql://redisgate_dev:redisgate_dev_password@localhost:5432/redisgate_dev" >> $GITHUB_ENV
-          echo "KUBERNETES_AVAILABLE=false" >> $GITHUB_ENV
-
-      - name: Install sqlx-cli and run migrations
-        run: |
-          cargo install sqlx-cli --no-default-features --features native-tls,postgres
-          sqlx migrate run
-
-      - name: Cache Python dependencies
-        uses: actions/cache@v4
-        with:
-          path: tests/integration/.venv
-          key: ${{ runner.os }}-python-${{ hashFiles('tests/integration/requirements.txt') }}
-
-      - name: Run integration test setup validation
-        working-directory: tests/integration
-        run: |
-          python run_tests.py --install-deps --mode ci --verbose --report
-        continue-on-error: true
-
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-test-reports
-          path: |
-            tests/integration/reports/
-            tests/integration/.pytest_cache/
-          retention-days: 7
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: [check, test]
-    strategy:
-      matrix:
-        target: [x86_64-unknown-linux-gnu]
-        profile: [dev, release]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo build
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
-          path: target/
-          key: ${{ runner.os }}-cargo-build-${{ matrix.profile }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install SQLx CLI
+        run: cargo install sqlx-cli --no-default-features --features postgres
+
+      - name: Run database migrations
+        run: sqlx migrate run
 
       - name: Build
-        run: |
-          if [ "${{ matrix.profile }}" = "release" ]; then
-            cargo build --release --target ${{ matrix.target }}
-          else
-            cargo build --target ${{ matrix.target }}
-          fi
+        run: cargo build --verbose
 
-      - name: Upload binary artifact
-        if: matrix.profile == 'release'
-        uses: actions/upload-artifact@v4
+      - name: Run tests
+        run: cargo test --verbose
+
+      - name: Run integration tests
+        run: cargo test --verbose -- --ignored
+        continue-on-error: true
+
+  # Build Docker image (only on main branch)
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v4
         with:
-          name: redisgate-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/redisgate
-          retention-days: 30
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: redisgate:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 

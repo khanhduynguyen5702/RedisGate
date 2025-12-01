@@ -1,0 +1,59 @@
+# RedisGate Configuration File
+# Development Environment
+
+[server]
+host = "0.0.0.0"
+port = 3000
+workers = 4  # Auto-detect: num_cpus
+request_timeout_seconds = 30
+max_request_size_mb = 10
+
+[database]
+url = "postgresql://redisgate_dev:devpassword123@127.0.0.1:5432/redisgate_dev"
+max_connections = 10
+min_connections = 2
+connection_timeout_seconds = 30
+idle_timeout_seconds = 600  # 10 minutes
+enable_logging = true
+
+[redis]
+default_timeout_ms = 5000
+max_retries = 3
+retry_delay_ms = 1000
+pool_size = 10
+# Local Redis server for development (used as fallback when instances don't have specific connection info)
+local_host = "127.0.0.1"
+local_port = 6379
+local_password = ""
+
+[rate_limit]
+default_requests_per_second = 100
+burst_size = 20
+enabled = true
+
+[metrics]
+enabled = true
+path = "/metrics"
+histogram_buckets = [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+
+[health]
+enabled = true
+check_interval_seconds = 30
+
+[security]
+jwt_secret = "development_secret_key_change_in_production_minimum_32_chars"
+token_expiry_hours = 24
+api_key_expiry_days = 365
+enable_https = false
+enable_cors = true
+cors_allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000"
+]
+
+[logging]
+level = "info"  # trace, debug, info, warn, error
+json_format = false
+log_to_file = false
+log_file_path = "logs/redisgate.log"

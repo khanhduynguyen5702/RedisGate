@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                o.max_api_keys,\n                COUNT(ak.id)::INTEGER as current_api_keys\n            FROM organizations o\n            LEFT JOIN api_keys ak ON o.id = ak.organization_id AND ak.is_active = true\n            WHERE o.id = $1\n            GROUP BY o.id, o.max_api_keys\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "max_api_keys",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "current_api_keys",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "a4fe19c13fe457d76424ffca2dc11b55056f4260db65e9b0b95c26b1d78473cb"
+}

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Redis Connection</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #1a1a1a; color: #fff; }
+        .log { background: #2a2a2a; padding: 15px; margin: 10px 0; border-radius: 5px; font-family: monospace; }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .warning { color: #ff9800; }
+        button { padding: 10px 20px; margin: 5px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0b7dda; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Redis Connection Test</h1>
+    <button onclick="runTest()">Run Full Test</button>
+    <button onclick="clearLogs()">Clear Logs</button>
+    <div id="logs"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = message;
+            logs.appendChild(div);
+            console.log(message);
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        async function runTest() {
+            clearLogs();
+            log('=== Starting Redis Connection Test ===');
+
+            try {
+                // Step 1: Login
+                log('\n1. Logging in...');
+                const loginResponse = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'Test123!@#'
+                    })
+                });
+                const loginData = await loginResponse.json();
+                const token = loginData.data.token;
+                log('✓ Login successful', 'success');
+                log(`Token: ${token.substring(0, 30)}...`);
+
+                // Step 2: Get Organization
+                log('\n2. Getting organization...');
+                const orgsResponse = await fetch('/api/organizations?page=1&per_page=10', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const orgsData = await orgsResponse.json();
+                const orgId = orgsData.data.organizations[0].id;
+                log(`✓ Organization ID: ${orgId}`, 'success');
+
+                // Step 3: Get Redis Instances
+                log('\n3. Getting Redis instances...');
+                const instancesResponse = await fetch(`/api/organizations/${orgId}/redis-instances`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const instancesData = await instancesResponse.json();
+
+                if (instancesData.data.instances.length === 0) {
+                    log('⚠ No instances found. Create one first!', 'warning');
+                    return;
+                }
+
+                const instance = instancesData.data.instances[0];
+                const instanceId = instance.id;
+                log(`✓ Found instance: ${instance.name} (${instanceId})`, 'success');
+
+                // Step 4: Get API Key
+                log('\n4. Getting API key...');
+                const keysResponse = await fetch(`/api/organizations/${orgId}/api-keys`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const keysData = await keysResponse.json();
+                const apiKey = keysData.data.api_keys[0].key_token;
+                log(`✓ API Key: ${apiKey.substring(0, 20)}...`, 'success');
+
+                // Step 5: TEST PING!
+                log('\n5. === TESTING PING ===', 'warning');
+                const pingResponse = await fetch(`/api/redis/${instanceId}/ping`, {
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+                const pingData = await pingResponse.json();
+                const pingResult = pingData.result;
+
+                log(`PING Result: ${pingResult}`);
+
+                if (pingResult.includes('simulation mode')) {
+                    log('✗ FAILED - Still in simulation mode!', 'error');
+                    log('Redis connection not working properly', 'error');
+                } else if (pingResult === 'PONG') {
+                    log('✓✓✓ SUCCESS - Real Redis connection working!', 'success');
+
+                    // Test SET
+                    log('\n6. Testing SET command...');
+                    const setResponse = await fetch(`/api/redis/${instanceId}/set/test_key/hello_redis`, {
+                        headers: { 'Authorization': `Bearer ${apiKey}` }
+                    });
+                    const setData = await setResponse.json();
+                    log(`SET Result: ${setData.result}`, setData.result === 'OK' ? 'success' : 'warning');
+
+                    // Test GET
+                    log('\n7. Testing GET command...');
+                    const getResponse = await fetch(`/api/redis/${instanceId}/get/test_key`, {
+                        headers: { 'Authorization': `Bearer ${apiKey}` }
+                    });
+                    const getData = await getResponse.json();
+                    log(`GET Result: ${getData.result}`, getData.result === 'hello_redis' ? 'success' : 'warning');
+
+                    // Test INCR
+                    log('\n8. Testing INCR command...');
+                    const incrResponse = await fetch(`/api/redis/${instanceId}/incr/counter`, {
+                        headers: { 'Authorization': `Bearer ${apiKey}` }
+                    });
+                    const incrData = await incrResponse.json();
+                    log(`INCR Result: ${incrData.result}`, 'success');
+                } else {
+                    log(`? Unexpected result: ${pingResult}`, 'warning');
+                }
+
+                log('\n=== Test Complete ===', 'success');
+
+            } catch (error) {
+                log(`✗ Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // Auto-run test on page load
+        window.addEventListener('load', () => {
+            setTimeout(runTest, 500);
+        });
+    </script>
+</body>
+</html>
+

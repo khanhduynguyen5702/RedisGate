@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>✅ Đã sửa lỗi 401 - RedisGate</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #667eea;
+            margin-top: 30px;
+        }
+        .success-icon {
+            font-size: 64px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .step {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+        .code {
+            background: #2d3748;
+            color: #a0aec0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .btn {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin: 10px 5px;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background: #5568d3;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-success:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✅</div>
+        <h1>Đã Sửa Lỗi 401 Unauthorized!</h1>
+        <p>Server đã được khởi động lại với JWT_SECRET cố định. Bây giờ bạn cần đăng nhập lại để lấy token mới.</p>
+
+        <h2>🔐 Bước 1: Xóa token cũ</h2>
+        <div class="step">
+            <p><strong>Mở Console trong trình duyệt:</strong></p>
+            <ol>
+                <li>Nhấn <kbd>F12</kbd> để mở DevTools</li>
+                <li>Chuyển sang tab <strong>Console</strong></li>
+                <li>Copy và paste dòng lệnh sau:</li>
+            </ol>
+            <div class="code">
+localStorage.clear();<br>
+console.log('✓ Đã xóa token cũ!');<br>
+window.location.href = '/index.html';
+            </div>
+            <p><em>Hoặc click nút bên dưới:</em></p>
+            <button class="btn" onclick="clearAndRedirect()">🗑️ Xóa token và về trang đăng nhập</button>
+        </div>
+
+        <h2>👤 Bước 2: Đăng nhập với tài khoản mới</h2>
+        <div class="step">
+            <p><strong>Sử dụng tài khoản test đã tạo:</strong></p>
+            <div class="code">
+Email: test@example.com<br>
+Password: Password123!
+            </div>
+            <p>Hoặc tạo tài khoản mới tại trang đăng ký.</p>
+            <a href="/index.html" class="btn btn-success">🚀 Đi đến trang đăng nhập</a>
+        </div>
+
+        <h2>✨ Bước 3: Tạo Organization và Redis Instance</h2>
+        <div class="step">
+            <p>Sau khi đăng nhập thành công:</p>
+            <ol>
+                <li>Tạo một <strong>Organization</strong> mới (tự động)</li>
+                <li>Tạo <strong>Redis Instance</strong> đầu tiên của bạn</li>
+                <li>Sử dụng Redis qua HTTP API!</li>
+            </ol>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Lưu ý quan trọng:</strong>
+            <ul>
+                <li>File <code>.env</code> đã được tạo với JWT_SECRET cố định</li>
+                <li>Server sẽ không bị mất token sau khi restart nữa</li>
+                <li>Token có hiệu lực 24 giờ, sau đó cần đăng nhập lại</li>
+            </ul>
+        </div>
+
+        <h2>📋 Tóm tắt</h2>
+        <div class="step">
+            <p><strong>Vấn đề:</strong> Token cũ không hợp lệ vì server đã restart với secret key mới.</p>
+            <p><strong>Giải pháp:</strong> Đã tạo file <code>.env</code> với JWT_SECRET cố định và tạo user mới.</p>
+            <p><strong>Kết quả:</strong> ✅ Token mới hoạt động hoàn hảo!</p>
+        </div>
+    </div>
+
+    <script>
+        function clearAndRedirect() {
+            localStorage.clear();
+            sessionStorage.clear();
+            alert('✓ Đã xóa tất cả token cũ!');
+            window.location.href = '/index.html';
+        }
+
+        // Auto check if we already have a token
+        window.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                const notice = document.createElement('div');
+                notice.style.cssText = 'background:#fff3cd;padding:15px;margin:20px 0;border-radius:5px;border-left:4px solid #ffc107';
+                notice.innerHTML = `
+                    <strong>⚠️ Phát hiện token cũ trong localStorage!</strong><br>
+                    <button class="btn" onclick="clearAndRedirect()" style="margin-top:10px">
+                        🗑️ Click để xóa và đăng nhập lại
+                    </button>
+                `;
+                document.querySelector('.container').insertBefore(notice, document.querySelector('h2'));
+            }
+        });
+    </script>
+</body>
+</html>
+

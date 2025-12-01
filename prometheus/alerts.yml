@@ -1,0 +1,168 @@
+# Prometheus alert rules for RedisGate
+
+groups:
+  - name: redisgate_alerts
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(http_request_errors_total[5m])
+            /
+            rate(http_requests_total[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      # Very high error rate
+      - alert: CriticalErrorRate
+        expr: |
+          (
+            rate(http_request_errors_total[5m])
+            /
+            rate(http_requests_total[5m])
+          ) > 0.20
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Critical error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 20%)"
+
+      # High latency
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket[5m])
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High request latency detected"
+          description: "P95 latency is {{ $value }}s (threshold: 1s)"
+
+      # Database connection issues
+      - alert: DatabaseConnectionFailed
+        expr: up{job="redisgate"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection failed"
+          description: "Cannot connect to database"
+
+      # Redis connection pool low
+      - alert: RedisConnectionPoolLow
+        expr: redis_connections_active < 1
+        for: 5m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "Redis connection pool is low"
+          description: "Only {{ $value }} active Redis connections"
+
+      # High API key authentication failures
+      - alert: HighAuthFailures
+        expr: rate(api_key_auth_failures_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: auth
+        annotations:
+          summary: "High API key authentication failures"
+          description: "{{ $value }} auth failures/second (threshold: 10/s)"
+
+      # Redis command errors
+      - alert: RedisCommandErrors
+        expr: |
+          (
+            rate(redis_command_errors_total[5m])
+            /
+            rate(redis_commands_total[5m])
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "High Redis command error rate"
+          description: "Redis error rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+
+      # Database query latency
+      - alert: HighDatabaseLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(database_query_duration_seconds_bucket[5m])
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High database query latency"
+          description: "P95 database latency is {{ $value }}s (threshold: 0.5s)"
+
+      # Instance count changed significantly
+      - alert: InstanceCountChanged
+        expr: |
+          abs(delta(redis_instances_total[1h])) > 10
+        for: 5m
+        labels:
+          severity: info
+          component: instances
+        annotations:
+          summary: "Redis instance count changed significantly"
+          description: "Instance count changed by {{ $value }} in the last hour"
+
+      # Service down
+      - alert: ServiceDown
+        expr: up{job="redisgate"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: service
+        annotations:
+          summary: "RedisGate service is down"
+          description: "Service has been down for more than 1 minute"
+
+      # Memory usage (if available from node exporter)
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes
+          ) / node_memory_MemTotal_bytes > 0.90
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 90%)"
+
+      # CPU usage
+      - alert: HighCPUUsage
+        expr: |
+          100 - (
+            avg by(instance) (
+              irate(node_cpu_seconds_total{mode="idle"}[5m])
+            ) * 100
+          ) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% (threshold: 80%)"
+

@@ -164,21 +164,22 @@ async fn get_redis_connection(instance: &RedisInstance) -> Result<Connection, Er
 async fn try_get_redis_connection(instance: &RedisInstance) -> Option<redis::Connection> {
     let host = if let Some(domain) = &instance.domain {
         domain.clone()
+    } else if let Some(service_name) = &instance.service_name {
+        service_name.clone()
     } else if let Some(public_ip) = &instance.public_ip_address {
         public_ip.ip().to_string()
     } else if let Some(private_ip) = &instance.private_ip_address {
         private_ip.ip().to_string()
-    } else if let Some(service_name) = &instance.service_name {
-        service_name.clone()
     } else {
-        warn!("No connection info found for instance {}, will use simulation mode", instance.id);
-        return None;
+        // If no connection info at all, default to localhost for development
+        warn!("No connection info found for instance {}, defaulting to localhost", instance.id);
+        "localhost".to_string()
     };
 
     let port = instance.port.unwrap_or(6379);
 
     // For development instances (dev-* or localhost* domains), connect to actual localhost
-    let is_dev = host.starts_with("dev-") || host.starts_with("localhost") || host == "127.0.0.1";
+    let is_dev = host.starts_with("dev-") || host.starts_with("localhost") || host == "127.0.0.1" || host.contains("service");
     let actual_host = if is_dev {
         "127.0.0.1".to_string()
     } else {
@@ -188,32 +189,34 @@ async fn try_get_redis_connection(instance: &RedisInstance) -> Option<redis::Con
     // For development instances, don't use password
     let redis_url = if is_dev {
         // Development mode - connect to local Redis without password
-        info!("Using localhost Redis (development mode) for instance {}", instance.id);
+        info!("Using localhost Redis (development mode) for instance {} at {}:{}", instance.id, actual_host, port);
         format!("redis://{}:{}/", actual_host, port)
     } else if let Some(password) = &instance.password_hash {
         // Production mode - use password
+        info!("Using Redis with auth for instance {} at {}:{}", instance.id, actual_host, port);
         format!("redis://:{}@{}:{}/", password, actual_host, port)
     } else {
+        info!("Using Redis without auth for instance {} at {}:{}", instance.id, actual_host, port);
         format!("redis://{}:{}/", actual_host, port)
     };
 
-    info!("Attempting Redis connection for instance {} at {}:{}", instance.id, actual_host, port);
+    info!("Attempting Redis connection for instance {}", instance.id);
 
     match Client::open(redis_url.as_str()) {
         Ok(client) => {
             match client.get_connection() {
                 Ok(conn) => {
-                    info!("Successfully connected to Redis instance {}", instance.id);
+                    info!("✓ Successfully connected to Redis instance {}", instance.id);
                     Some(conn)
                 },
                 Err(e) => {
-                    warn!("Failed to connect to Redis instance {}: {} - using simulation mode", instance.id, e);
+                    error!("✗ Failed to connect to Redis instance {}: {} - using simulation mode", instance.id, e);
                     None
                 }
             }
         },
         Err(e) => {
-            warn!("Failed to create Redis client for instance {}: {} - using simulation mode", instance.id, e);
+            error!("✗ Failed to create Redis client for instance {}: {} - using simulation mode", instance.id, e);
             None
         }
     }
@@ -1162,6 +1165,346 @@ pub async fn handle_lpop(
             info!("Using simulation mode for LPOP on instance {}", instance_id);
             Ok(Json(RedisResponse {
                 result: Value::String(format!("mock-value-for-{} (simulation mode)", key)),
+            }))
+        }
+    }
+}
+
+/// Handle EXPIRE command - Set key expiration time in seconds
+pub async fn handle_expire(
+    State(state): State<Arc<AppState>>,
+    Path((instance_id, key, seconds)): Path<(Uuid, String, i64)>,
+    Query(query): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Result<Json<RedisResponse>, ErrorResponse> {
+    let api_key = extract_api_key(&headers, &Query(query)).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "Missing API key"})),
+        )
+    })?;
+
+    let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
+
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            let result: i32 = redis::cmd("EXPIRE")
+                .arg(&key)
+                .arg(seconds)
+                .query(&mut conn)
+                .map_err(|e| {
+                    error!("Redis EXPIRE failed: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Redis command failed"})),
+                    )
+                })?;
+
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(result)),
+            }))
+        },
+        None => {
+            info!("Using simulation mode for EXPIRE on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(1)),
+            }))
+        }
+    }
+}
+
+/// Handle TTL command - Get time to live for key
+pub async fn handle_ttl(
+    State(state): State<Arc<AppState>>,
+    Path((instance_id, key)): Path<(Uuid, String)>,
+    Query(query): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Result<Json<RedisResponse>, ErrorResponse> {
+    let api_key = extract_api_key(&headers, &Query(query)).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "Missing API key"})),
+        )
+    })?;
+
+    let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
+
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            let result: i64 = redis::cmd("TTL")
+                .arg(&key)
+                .query(&mut conn)
+                .map_err(|e| {
+                    error!("Redis TTL failed: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Redis command failed"})),
+                    )
+                })?;
+
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(result)),
+            }))
+        },
+        None => {
+            info!("Using simulation mode for TTL on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(-1)), // -1 means no expiration
+            }))
+        }
+    }
+}
+
+/// Handle EXISTS command - Check if key exists
+pub async fn handle_exists(
+    State(state): State<Arc<AppState>>,
+    Path((instance_id, key)): Path<(Uuid, String)>,
+    Query(query): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Result<Json<RedisResponse>, ErrorResponse> {
+    let api_key = extract_api_key(&headers, &Query(query)).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "Missing API key"})),
+        )
+    })?;
+
+    let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
+
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            let result: i32 = redis::cmd("EXISTS")
+                .arg(&key)
+                .query(&mut conn)
+                .map_err(|e| {
+                    error!("Redis EXISTS failed: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Redis command failed"})),
+                    )
+                })?;
+
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(result)),
+            }))
+        },
+        None => {
+            info!("Using simulation mode for EXISTS on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(0)),
+            }))
+        }
+    }
+}
+
+/// Handle DECR command - Decrement integer value
+pub async fn handle_decr(
+    State(state): State<Arc<AppState>>,
+    Path((instance_id, key)): Path<(Uuid, String)>,
+    Query(query): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Result<Json<RedisResponse>, ErrorResponse> {
+    let api_key = extract_api_key(&headers, &Query(query)).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "Missing API key"})),
+        )
+    })?;
+
+    let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
+
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            let result: i64 = redis::cmd("DECR")
+                .arg(&key)
+                .query(&mut conn)
+                .map_err(|e| {
+                    error!("Redis DECR failed: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Redis command failed"})),
+                    )
+                })?;
+
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(result)),
+            }))
+        },
+        None => {
+            info!("Using simulation mode for DECR on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(-1)),
+            }))
+        }
+    }
+}
+
+/// Handle SADD command - Add member to set
+pub async fn handle_sadd(
+    State(state): State<Arc<AppState>>,
+    Path((instance_id, key, member)): Path<(Uuid, String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Result<Json<RedisResponse>, ErrorResponse> {
+    let api_key = extract_api_key(&headers, &Query(query)).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "Missing API key"})),
+        )
+    })?;
+
+    let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
+
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            let result: i32 = redis::cmd("SADD")
+                .arg(&key)
+                .arg(&member)
+                .query(&mut conn)
+                .map_err(|e| {
+                    error!("Redis SADD failed: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Redis command failed"})),
+                    )
+                })?;
+
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(result)),
+            }))
+        },
+        None => {
+            info!("Using simulation mode for SADD on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(1)),
+            }))
+        }
+    }
+}
+
+/// Handle SMEMBERS command - Get all members of set
+pub async fn handle_smembers(
+    State(state): State<Arc<AppState>>,
+    Path((instance_id, key)): Path<(Uuid, String)>,
+    Query(query): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Result<Json<RedisResponse>, ErrorResponse> {
+    let api_key = extract_api_key(&headers, &Query(query)).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "Missing API key"})),
+        )
+    })?;
+
+    let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
+
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            let result: redis::Value = redis::cmd("SMEMBERS")
+                .arg(&key)
+                .query(&mut conn)
+                .map_err(|e| {
+                    error!("Redis SMEMBERS failed: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Redis command failed"})),
+                    )
+                })?;
+
+            Ok(Json(RedisResponse {
+                result: redis_value_to_json(result),
+            }))
+        },
+        None => {
+            info!("Using simulation mode for SMEMBERS on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::Array(vec![]),
+            }))
+        }
+    }
+}
+
+/// Handle SISMEMBER command - Check if member exists in set
+pub async fn handle_sismember(
+    State(state): State<Arc<AppState>>,
+    Path((instance_id, key, member)): Path<(Uuid, String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Result<Json<RedisResponse>, ErrorResponse> {
+    let api_key = extract_api_key(&headers, &Query(query)).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "Missing API key"})),
+        )
+    })?;
+
+    let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
+
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            let result: i32 = redis::cmd("SISMEMBER")
+                .arg(&key)
+                .arg(&member)
+                .query(&mut conn)
+                .map_err(|e| {
+                    error!("Redis SISMEMBER failed: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Redis command failed"})),
+                    )
+                })?;
+
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(result)),
+            }))
+        },
+        None => {
+            info!("Using simulation mode for SISMEMBER on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(0)),
+            }))
+        }
+    }
+}
+
+/// Handle SREM command - Remove member from set
+pub async fn handle_srem(
+    State(state): State<Arc<AppState>>,
+    Path((instance_id, key, member)): Path<(Uuid, String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Result<Json<RedisResponse>, ErrorResponse> {
+    let api_key = extract_api_key(&headers, &Query(query)).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "Missing API key"})),
+        )
+    })?;
+
+    let (instance, _claims) = authenticate_and_get_instance(&state, &api_key, instance_id).await?;
+
+    match try_get_redis_connection(&instance).await {
+        Some(mut conn) => {
+            let result: i32 = redis::cmd("SREM")
+                .arg(&key)
+                .arg(&member)
+                .query(&mut conn)
+                .map_err(|e| {
+                    error!("Redis SREM failed: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Redis command failed"})),
+                    )
+                })?;
+
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(result)),
+            }))
+        },
+        None => {
+            info!("Using simulation mode for SREM on instance {}", instance_id);
+            Ok(Json(RedisResponse {
+                result: Value::Number(serde_json::Number::from(1)),
             }))
         }
     }

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>🔑 Get Your API Key</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        .api-key-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #2ecc71;
+            margin: 20px 0;
+        }
+        .key-display {
+            background: #2d3748;
+            color: #a0aec0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #5568d3;
+        }
+        .btn-success {
+            background: #2ecc71;
+        }
+        .btn-success:hover {
+            background: #27ae60;
+        }
+        .message {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .message-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .message-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔑 Your Redis API Key</h1>
+
+        <div class="message message-info">
+            <strong>ℹ️ Your API key is ready!</strong>
+            <p>Use this key to connect to your Redis instances via HTTP API.</p>
+        </div>
+
+        <div class="api-key-box">
+            <h3 style="margin-top: 0; color: #2ecc71;">✅ Latest API Key</h3>
+            <div class="key-display" id="apiKeyDisplay">
+                eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhcGlfa2V5X2lkIjoiNmE4OTVjODUtODY1Ny00OTM0LWJhYjItNzBmZDMwYWZhZDE2IiwidXNlcl9pZCI6ImE0Mjc1Yzg0LWE5NGQtNDI0NS04M2M1LWU0ZWQ1Y2NiNzZiYyIsIm9yZ2FuaXphdGlvbl9pZCI6IjRjMWQyZGJkLThiNGQtNGE3NS05ZTE3LTkyZjBjMjYzNTg1MSIsInNjb3BlcyI6WyIqIl0sImtleV9wcmVmaXgiOiJyZ182YTg5NWM4NTg2NTciLCJleHAiOjE3OTUyNDYwNDgsImlhdCI6MTc2MzcxMDA0OH0.ugOgxTIiBcnykeXftJTtZf-gyVmSokuDof5Jt4Y8PBE
+            </div>
+
+            <button class="btn btn-success" onclick="copyApiKey()">📋 Copy API Key</button>
+            <button class="btn" onclick="saveToLocalStorage()">💾 Save to Browser</button>
+        </div>
+
+        <div class="message message-success" id="successMessage" style="display: none;">
+            <strong>✅ Success!</strong>
+            <p id="successText"></p>
+        </div>
+
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 20px;">
+            <h3 style="color: #667eea;">📖 How to Use</h3>
+
+            <p><strong>1. Save API Key to Browser:</strong></p>
+            <p>Click "Save to Browser" button above to store the API key in localStorage.</p>
+
+            <p><strong>2. Get Instance ID:</strong></p>
+            <p>Go to Dashboard → Instances tab → Copy your instance ID</p>
+
+            <p><strong>3. Test Connection:</strong></p>
+            <pre style="background: #2d3748; color: #a0aec0; padding: 15px; border-radius: 5px; overflow-x: auto;">curl -H "Authorization: Bearer YOUR_API_KEY" \
+     http://localhost:3000/redis/INSTANCE_ID/ping</pre>
+
+            <p><strong>Expected Response:</strong></p>
+            <pre style="background: #d4edda; color: #155724; padding: 15px; border-radius: 5px;">{"result": "PONG"}</pre>
+        </div>
+
+        <div style="margin-top: 20px; text-align: center;">
+            <button class="btn" onclick="window.location.href='/dashboard.html'">Go to Dashboard</button>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhcGlfa2V5X2lkIjoiNmE4OTVjODUtODY1Ny00OTM0LWJhYjItNzBmZDMwYWZhZDE2IiwidXNlcl9pZCI6ImE0Mjc1Yzg0LWE5NGQtNDI0NS04M2M1LWU0ZWQ1Y2NiNzZiYyIsIm9yZ2FuaXphdGlvbl9pZCI6IjRjMWQyZGJkLThiNGQtNGE3NS05ZTE3LTkyZjBjMjYzNTg1MSIsInNjb3BlcyI6WyIqIl0sImtleV9wcmVmaXgiOiJyZ182YTg5NWM4NTg2NTciLCJleHAiOjE3OTUyNDYwNDgsImlhdCI6MTc2MzcxMDA0OH0.ugOgxTIiBcnykeXftJTtZf-gyVmSokuDof5Jt4Y8PBE";
+
+        function copyApiKey() {
+            navigator.clipboard.writeText(API_KEY).then(() => {
+                showSuccess('API Key copied to clipboard!');
+            });
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('apiKey', API_KEY);
+            showSuccess('API Key saved to browser! You can now use it in Dashboard Settings.');
+
+            // Also check and display current state
+            console.log('✅ API Key saved to localStorage');
+            console.log('Key:', API_KEY.substring(0, 50) + '...');
+        }
+
+        function showSuccess(message) {
+            const msgDiv = document.getElementById('successMessage');
+            const msgText = document.getElementById('successText');
+            msgText.textContent = message;
+            msgDiv.style.display = 'block';
+
+            setTimeout(() => {
+                msgDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Auto-save on load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check if already saved
+            const existing = localStorage.getItem('apiKey');
+            if (existing) {
+                console.log('⚠️ Found existing API key in localStorage');
+                console.log('Old key:', existing.substring(0, 50) + '...');
+            }
+
+            // Auto-save the new key
+            saveToLocalStorage();
+        });
+    </script>
+</body>
+</html>
+

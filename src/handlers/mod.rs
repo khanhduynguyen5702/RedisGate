@@ -6,3 +6,4 @@ pub mod api_keys;
 pub mod redis_instances;
 pub mod redis;
 pub mod quota;
+pub mod monitoring;

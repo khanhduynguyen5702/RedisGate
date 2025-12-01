@@ -485,7 +485,9 @@ If command is rejected or fails, response JSON will have a single `error` field 
 
 ```json
 {"error":"WRONGPASS invalid password"}
+```
 
+```json
 {"error":"ERR wrong number of arguments for 'get' command"}
 ```
 

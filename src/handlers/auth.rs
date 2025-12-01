@@ -5,6 +5,7 @@ use chrono::Utc;
 use std::sync::Arc;
 use uuid::Uuid;
 use validator::Validate;
+use tracing::{info, warn, error, debug, instrument};
 
 use crate::api_models::{ApiResponse, LoginRequest, LoginResponse, RegisterRequest, UserResponse};
 use crate::auth::{hash_password, verify_password, Claims};
@@ -32,18 +33,23 @@ fn user_to_response(user: User) -> UserResponse {
     }
 }
 
+#[instrument(skip(state, payload), fields(email = %payload.email, username = %payload.username))]
 pub async fn register(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<RegisterRequest>,
 ) -> Result<Json<ApiResponse<UserResponse>>, ErrorResponse> {
+    info!("Processing user registration request");
+
     // Validate input
     if let Err(errors) = payload.validate() {
+        warn!("Registration validation failed: {:?}", errors);
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ApiResponse::<()>::error(format!("Validation error: {:?}", errors))),
         ));
     }
 
+    debug!("Checking for existing user");
     // Check if user already exists
     let existing_user = sqlx::query!(
         "SELECT id FROM users WHERE email = $1 OR username = $2",
@@ -53,6 +59,7 @@ pub async fn register(
     .fetch_optional(&state.db_pool)
     .await
     .map_err(|e| {
+        error!("Database error while checking existing user: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ApiResponse::<()>::error(format!("Database error: {}", e))),
@@ -60,14 +67,17 @@ pub async fn register(
     })?;
 
     if existing_user.is_some() {
+        warn!("Registration attempt with existing email or username");
         return Err((
             StatusCode::CONFLICT,
             Json(ApiResponse::<()>::error("User already exists with this email or username".to_string())),
         ));
     }
 
+    debug!("Hashing password");
     // Hash password
     let password_hash = hash_password(&payload.password).map_err(|e| {
+        error!("Password hashing error: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ApiResponse::<()>::error(format!("Password hashing error: {}", e))),
@@ -78,6 +88,7 @@ pub async fn register(
     let user_id = Uuid::new_v4();
     let now = Utc::now();
     
+    info!("Creating new user with ID: {}", user_id);
     sqlx::query!(
         r#"
         INSERT INTO users (id, email, username, password_hash, first_name, last_name, created_at, updated_at)
@@ -95,6 +106,7 @@ pub async fn register(
     .execute(&state.db_pool)
     .await
     .map_err(|e| {
+        error!("Failed to create user: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ApiResponse::<()>::error(format!("Failed to create user: {}", e))),
@@ -106,6 +118,7 @@ pub async fn register(
         .fetch_one(&state.db_pool)
         .await
         .map_err(|e| {
+            error!("Failed to fetch created user: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ApiResponse::<()>::error(format!("Failed to fetch created user: {}", e))),
@@ -113,22 +126,28 @@ pub async fn register(
         })?;
 
     let user_response = user_to_response(user);
+    info!("User registration successful");
 
     Ok(Json(ApiResponse::success(user_response)))
 }
 
+#[instrument(skip(state, payload), fields(email = %payload.email))]
 pub async fn login(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<ApiResponse<LoginResponse>>, ErrorResponse> {
+    info!("Processing login request");
+
     // Validate input
     if let Err(errors) = payload.validate() {
+        warn!("Login validation failed: {:?}", errors);
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ApiResponse::<()>::error(format!("Validation error: {:?}", errors))),
         ));
     }
 
+    debug!("Looking up user by email");
     // Find user by email
     let user = sqlx::query_as!(
         User,
@@ -138,12 +157,14 @@ pub async fn login(
     .fetch_optional(&state.db_pool)
     .await
     .map_err(|e| {
+        error!("Database error during login: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ApiResponse::<()>::error(format!("Database error: {}", e))),
         )
     })?
     .ok_or_else(|| {
+        warn!("Login attempt with non-existent email");
         (
             StatusCode::UNAUTHORIZED,
             Json(ApiResponse::<()>::error("Invalid credentials".to_string())),
@@ -152,14 +173,17 @@ pub async fn login(
 
     // Check if user is active
     if !user.is_active.unwrap_or(false) {
+        warn!("Login attempt for inactive user: {}", user.id);
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(ApiResponse::<()>::error("User account is not active".to_string())),
         ));
     }
 
+    debug!("Verifying password");
     // Verify password
     let password_valid = verify_password(&payload.password, &user.password_hash).map_err(|e| {
+        error!("Password verification error: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ApiResponse::<()>::error(format!("Password verification error: {}", e))),
@@ -167,12 +191,14 @@ pub async fn login(
     })?;
 
     if !password_valid {
+        warn!("Login attempt with invalid password for user: {}", user.id);
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(ApiResponse::<()>::error("Invalid credentials".to_string())),
         ));
     }
 
+    debug!("Getting user's organization membership");
     // Get user's primary organization (if any)
     let org_id = sqlx::query!(
         "SELECT organization_id FROM organization_memberships WHERE user_id = $1 AND is_active = true ORDER BY created_at ASC LIMIT 1",
@@ -181,6 +207,7 @@ pub async fn login(
     .fetch_optional(&state.db_pool)
     .await
     .map_err(|e| {
+        error!("Database error fetching organization: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ApiResponse::<()>::error(format!("Database error: {}", e))),
@@ -188,9 +215,11 @@ pub async fn login(
     })?
     .map(|row| row.organization_id);
 
+    debug!("Creating JWT session token");
     // Create JWT token for session
     let claims = Claims::new(user.id, user.email.clone(), org_id);
     let token = state.jwt_manager.create_token(&claims).map_err(|e| {
+        error!("Token creation failed: {:?}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ApiResponse::<()>::error(format!("Token creation failed: {:?}", e))),
@@ -199,6 +228,7 @@ pub async fn login(
 
     // Create API key for Redis operations (if user has organization)
     let api_key = if let Some(org_id) = org_id {
+        debug!("Creating API key for organization: {}", org_id);
         // Generate API key ID and prefix
         let api_key_id = Uuid::new_v4();
         let key_prefix = format!("rg_{}", &api_key_id.to_string().replace("-", "")[..12]);
@@ -215,6 +245,7 @@ pub async fn login(
 
         // Generate JWT token for API key
         let api_key_token = state.jwt_manager.create_api_key_token(&api_key_claims).map_err(|e| {
+            error!("API key token creation failed: {:?}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ApiResponse::<()>::error(format!("API key creation failed: {:?}", e))),
@@ -241,14 +272,17 @@ pub async fn login(
         .execute(&state.db_pool)
         .await
         .map_err(|e| {
+            error!("Failed to save API key to database: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ApiResponse::<()>::error(format!("Failed to save API key: {}", e))),
             )
         })?;
 
+        info!("API key created successfully for user: {}", user.id);
         Some(api_key_token)
     } else {
+        debug!("No organization found, skipping API key creation");
         None
     };
 
@@ -261,6 +295,7 @@ pub async fn login(
         organization_id: org_id,
     };
 
+    info!("Login successful for user");
     Ok(Json(ApiResponse::success(login_response)))
 }
 

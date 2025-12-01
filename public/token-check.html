@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>🔍 Quick Token Check</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .box {
+            background: #0f3460;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            border-left: 5px solid #e94560;
+        }
+        .ok { border-left-color: #2ecc71; background: #1a4d2e; }
+        .error { border-left-color: #e74c3c; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-family: inherit;
+        }
+        button:hover { background: #5568d3; }
+        .btn-danger { background: #e74c3c; }
+        .btn-success { background: #2ecc71; }
+        pre {
+            background: #0a0e27;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 RedisGate Token Checker</h1>
+    <div id="result"></div>
+
+    <div class="box">
+        <h3>Actions:</h3>
+        <button class="btn-success" onclick="testTokenNow()">🔄 Test Token NOW</button>
+        <button onclick="loginPage()">🔐 Go to Login</button>
+        <button class="btn-danger" onclick="clearAll()">🗑️ Clear & Reset</button>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function testTokenNow() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<div class="box">⏳ Testing...</div>';
+
+            // Step 1: Check localStorage
+            const token = localStorage.getItem('authToken');
+            const orgId = localStorage.getItem('organizationId');
+
+            let html = '<div class="box">';
+            html += '<h3>📦 LocalStorage Check:</h3>';
+
+            if (!token) {
+                html += '<p style="color:#e74c3c">❌ NO TOKEN FOUND!</p>';
+                html += '<p>You need to login first.</p>';
+                html += '</div>';
+                result.innerHTML = html;
+                return;
+            }
+
+            html += '<p style="color:#2ecc71">✅ Token exists</p>';
+            html += `<pre>${token.substring(0, 100)}...</pre>`;
+            html += `<p>Organization ID: ${orgId || 'Not set'}</p>`;
+            html += '</div>';
+
+            // Step 2: Test /auth/me
+            html += '<div class="box"><h3>🔍 Testing /auth/me:</h3>';
+
+            try {
+                console.log('Calling /auth/me with token:', token.substring(0, 50));
+
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                html += `<p>Response Status: <strong>${res.status}</strong></p>`;
+
+                if (res.status === 401) {
+                    html += '<p style="color:#e74c3c">❌ 401 UNAUTHORIZED - Token is INVALID!</p>';
+                    html += '<p>Possible reasons:</p>';
+                    html += '<ul>';
+                    html += '<li>Token expired (>24 hours old)</li>';
+                    html += '<li>Server restarted with different secret key</li>';
+                    html += '<li>Token corrupted</li>';
+                    html += '</ul>';
+                    html += '<p><strong>SOLUTION: Clear token and login again!</strong></p>';
+                    html += '</div>';
+                } else if (res.ok) {
+                    const data = await res.json();
+                    html += '<p style="color:#2ecc71">✅ TOKEN IS VALID!</p>';
+                    html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                    html += '</div>';
+
+                    // Step 3: Test organizations API
+                    html += '<div class="box ok"><h3>🏢 Testing /api/organizations:</h3>';
+
+                    const res2 = await fetch(`${API_BASE}/api/organizations`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    html += `<p>Response Status: ${res2.status}</p>`;
+
+                    if (res2.ok) {
+                        const data2 = await res2.json();
+                        html += '<p style="color:#2ecc71">✅ API CALL SUCCESS!</p>';
+                        html += '<pre>' + JSON.stringify(data2, null, 2) + '</pre>';
+                    } else {
+                        html += '<p style="color:#e74c3c">❌ Failed</p>';
+                    }
+                    html += '</div>';
+
+                    html += '<div class="box ok">';
+                    html += '<h2>🎉 ALL TESTS PASSED!</h2>';
+                    html += '<p>Your token is working perfectly. You can use the dashboard now.</p>';
+                    html += '<button onclick="gotoDashboard()" class="btn-success">Go to Dashboard</button>';
+                    html += '</div>';
+                } else {
+                    const text = await res.text();
+                    html += `<p style="color:#e74c3c">❌ Error: ${text}</p>`;
+                    html += '</div>';
+                }
+
+            } catch (error) {
+                html += `<p style="color:#e74c3c">❌ Network Error: ${error.message}</p>`;
+                html += '</div>';
+            }
+
+            result.innerHTML = html;
+        }
+
+        function loginPage() {
+            window.location.href = '/login.html';
+        }
+
+        function clearAll() {
+            if (confirm('Clear all data and reset?')) {
+                localStorage.clear();
+                sessionStorage.clear();
+                alert('✅ Cleared! Now go login.');
+                window.location.href = '/login.html';
+            }
+        }
+
+        function gotoDashboard() {
+            window.location.href = '/dashboard.html';
+        }
+
+        // Auto-run on load
+        window.addEventListener('DOMContentLoaded', () => {
+            testTokenNow();
+        });
+    </script>
+</body>
+</html>
+
