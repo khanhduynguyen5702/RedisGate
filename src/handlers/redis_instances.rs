@@ -491,12 +491,12 @@ pub async fn delete_redis_instance(
         ));
     }
 
-    // Check if Redis instance exists
-    let redis_instance = sqlx::query(
-        "SELECT api_key_id, namespace, slug FROM redis_instances WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL",
+    // Check if Redis instance exists and get its details
+    let redis_instance = sqlx::query!(
+        "SELECT namespace, slug, api_key_id FROM redis_instances WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL",
+        instance_id,
+        org_id
     )
-    .bind(instance_id)
-    .bind(org_id)
     .fetch_optional(&state.db_pool)
     .await
     .map_err(|e| {
@@ -514,30 +514,20 @@ pub async fn delete_redis_instance(
 
     let now = Utc::now();
 
-    // Delete from Kubernetes first
-    let k8s_service = K8sRedisService::new().await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::<()>::error(format!("Failed to initialize Kubernetes client: {}", e))),
-        )
-    })?;
+    let namespace = redis_instance.namespace;
+    let slug = redis_instance.slug;
+    let api_key_id = redis_instance.api_key_id;
 
-    let namespace: Option<String> = redis_instance.try_get("namespace").ok();
-    let slug: Option<String> = redis_instance.try_get("slug").ok();
-    let api_key_id: uuid::Uuid = redis_instance.try_get("api_key_id").map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::<()>::error(format!("Database field error: {}", e))),
-        )
-    })?;
-
-    if let (Some(namespace), Some(slug)) = (&namespace, &slug) {
-        k8s_service.delete_redis_instance(namespace, slug).await.map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ApiResponse::<()>::error(format!("Failed to delete Redis from Kubernetes: {}", e))),
-            )
-        })?;
+    // Try to delete from Kubernetes if available
+    match K8sRedisService::new().await {
+        Ok(k8s_service) => {
+            if let Err(e) = k8s_service.delete_redis_instance(&namespace, &slug).await {
+                tracing::warn!("Failed to delete Redis from Kubernetes: {}. Continuing with database deletion.", e);
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Kubernetes not available: {}. Skipping K8s deletion.", e);
+        }
     }
 
     // Soft delete Redis instance
@@ -556,20 +546,22 @@ pub async fn delete_redis_instance(
         )
     })?;
 
-    // Deactivate associated API key
-    sqlx::query!(
-        "UPDATE api_keys SET is_active = false, updated_at = $1 WHERE id = $2",
-        now,
-        api_key_id
-    )
-    .execute(&state.db_pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::<()>::error(format!("Failed to deactivate API key: {}", e))),
+    // Deactivate associated API key if it exists
+    if let Some(key_id) = api_key_id {
+        sqlx::query!(
+            "UPDATE api_keys SET is_active = false, updated_at = $1 WHERE id = $2",
+            now,
+            key_id
         )
-    })?;
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse::<()>::error(format!("Failed to deactivate API key: {}", e))),
+            )
+        })?;
+    }
 
     Ok(Json(ApiResponse {
         success: true,
@@ -635,36 +627,36 @@ pub async fn update_redis_instance_status(
     let current_status: Option<String> = redis_instance.try_get("status").ok();
 
     if let (Some(namespace), Some(slug)) = (&namespace, &slug) {
-        let k8s_service = K8sRedisService::new().await.map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ApiResponse::<()>::error(format!("Failed to initialize Kubernetes client: {}", e))),
-            )
-        })?;
-
-        let k8s_status = k8s_service.get_deployment_status(namespace, slug).await.map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ApiResponse::<()>::error(format!("Failed to check Kubernetes status: {}", e))),
-            )
-        })?;
-
-        // Update status in database if it changed
-        if current_status.as_deref() != Some(&k8s_status) {
-            sqlx::query(
-                "UPDATE redis_instances SET status = $1, updated_at = $2 WHERE id = $3",
-            )
-            .bind(&k8s_status)
-            .bind(chrono::Utc::now())
-            .bind(instance_id)
-            .execute(&state.db_pool)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ApiResponse::<()>::error(format!("Failed to update status: {}", e))),
-                )
-            })?;
+        match K8sRedisService::new().await {
+            Ok(k8s_service) => {
+                match k8s_service.get_deployment_status(namespace, slug).await {
+                    Ok(k8s_status) => {
+                        // Update status in database if it changed
+                        if current_status.as_deref() != Some(&k8s_status) {
+                            sqlx::query(
+                                "UPDATE redis_instances SET status = $1, updated_at = $2 WHERE id = $3",
+                            )
+                            .bind(&k8s_status)
+                            .bind(chrono::Utc::now())
+                            .bind(instance_id)
+                            .execute(&state.db_pool)
+                            .await
+                            .map_err(|e| {
+                                (
+                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                    Json(ApiResponse::<()>::error(format!("Failed to update status: {}", e))),
+                                )
+                            })?;
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to check Kubernetes status: {}. Using database status.", e);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Kubernetes not available: {}. Using database status.", e);
+            }
         }
     }
 
